@@ -101,17 +101,75 @@ public class AdminCommand extends Command {
                     "player", "top", "price", "find", "watch", "suspicious", "turnover", "wipe",
                     "give", "trend", "export", "itemhistory", "announce"), args[0]);
         }
-        if (args.length >= 2 && (args[0].equalsIgnoreCase("transactions") || args[0].equalsIgnoreCase("tx")
-                || args[0].equalsIgnoreCase("export"))) {
-            return CommandUtil.filterStartsWith(new ArrayList<>(LogTypes.TYPE_ALIASES.keySet()), args[args.length - 1]);
-        }
-        if (args.length == 2 && args[0].equalsIgnoreCase("top")) {
-            return CommandUtil.filterStartsWith(List.of("buyers", "sellers"), args[1]);
-        }
-        if (args.length >= 2 && (args[0].equalsIgnoreCase("price") || args[0].equalsIgnoreCase("find"))) {
-            return CommandUtil.filterStartsWith(CommandUtil.materialNames(), args[args.length - 1]);
-        }
-        return List.of();
+        String sub = args[0].toLowerCase(Locale.ROOT);
+        String current = args[args.length - 1];
+        int pos = args.length - 2;
+
+        return switch (sub) {
+            case "transactions", "tx" -> switch (pos) {
+                case 0 -> CommandUtil.filterStartsWith(List.of("20", "50", "100"), current); 
+                case 1 -> CommandUtil.filterStartsWith(CommandUtil.onlinePlayerNames(), current); 
+                case 2 -> CommandUtil.filterStartsWith(new ArrayList<>(LogTypes.TYPE_ALIASES.keySet()), current); 
+                case 3 -> CommandUtil.filterStartsWith(List.of("before:<id>"), current);
+                default -> List.of();
+            };
+            case "export" -> switch (pos) {
+                case 0 -> CommandUtil.filterStartsWith(List.of("24", "168", "720"), current); 
+                case 1 -> CommandUtil.filterStartsWith(new ArrayList<>(LogTypes.TYPE_ALIASES.keySet()), current); 
+                default -> List.of();
+            };
+            case "itemhistory", "ihist" -> switch (pos) {
+                case 0 -> CommandUtil.filterStartsWith(List.of("<item_id>"), current);
+                case 1 -> CommandUtil.filterStartsWith(List.of("24", "168", "720"), current); 
+                case 2 -> CommandUtil.filterStartsWith(List.of("20", "50", "100"), current); 
+                default -> List.of();
+            };
+            case "liquid", "liquidity" -> pos == 0
+                    ? CommandUtil.filterStartsWith(List.of("15", "20", "50"), current) 
+                    : List.of();
+            case "price" -> pos == 0
+                    ? CommandUtil.filterStartsWith(CommandUtil.materialNames(), current) 
+                    : List.of();
+            case "find" -> switch (pos) {
+                case 0 -> CommandUtil.filterStartsWith(CommandUtil.materialNames(), current); 
+                case 1 -> CommandUtil.filterStartsWith(List.of("20", "10", "50"), current); 
+                default -> List.of();
+            };
+            case "suspicious", "susp" -> switch (pos) {
+                case 0 -> CommandUtil.filterStartsWith(List.of("35", "50", "20"), current); 
+                case 1 -> CommandUtil.filterStartsWith(List.of("20", "10", "50"), current); 
+                default -> List.of();
+            };
+            case "trend" -> List.of();
+            case "turnover" -> pos == 0
+                    ? CommandUtil.filterStartsWith(List.of("24", "168", "720"), current) 
+                    : List.of();
+            case "top" -> switch (pos) {
+                case 0 -> CommandUtil.filterStartsWith(List.of("buyers", "sellers"), current);
+                case 1 -> CommandUtil.filterStartsWith(List.of("24", "168", "720"), current); 
+                case 2 -> CommandUtil.filterStartsWith(List.of("10", "20", "50"), current); 
+                default -> List.of();
+            };
+            case "lot", "removelot", "rmlot" -> pos == 0
+                    ? CommandUtil.filterStartsWith(List.of("<id>"), current)
+                    : List.of();
+            case "give", "compensate" -> switch (pos) {
+                case 0 -> CommandUtil.filterStartsWith(CommandUtil.onlinePlayerNames(), current); 
+                case 1 -> CommandUtil.filterStartsWith(List.of("<цена>"), current); 
+                case 2 -> CommandUtil.filterStartsWith(List.of("1", "16", "64"), current); 
+                case 3 -> CommandUtil.filterStartsWith(List.of("24", "168", "720"), current); 
+                default -> List.of();
+            };
+            case "player" -> pos == 0
+                    ? CommandUtil.filterStartsWith(CommandUtil.onlinePlayerNames(), current) 
+                    : List.of();
+            case "wipe" -> switch (pos) {
+                case 0 -> CommandUtil.filterStartsWith(CommandUtil.onlinePlayerNames(), current); 
+                case 1 -> CommandUtil.filterStartsWith(List.of("confirm"), current);
+                default -> List.of();
+            };
+            default -> List.of();
+        };
     }
 
     private void sendHelp(CommandSender sender) {

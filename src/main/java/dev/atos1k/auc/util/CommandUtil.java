@@ -1,6 +1,8 @@
 package dev.atos1k.auc.util;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -50,6 +52,14 @@ public final class CommandUtil {
         List<String> out = new ArrayList<>();
         for (Material m : Material.values()) {
             if (!m.isLegacy() && m.isItem()) out.add(m.name());
+        }
+        return out;
+    }
+
+    public static List<String> onlinePlayerNames() {
+        List<String> out = new ArrayList<>();
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            out.add(p.getName());
         }
         return out;
     }
