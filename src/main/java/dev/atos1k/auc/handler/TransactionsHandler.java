@@ -4,6 +4,7 @@ import dev.atos1k.auc.AdminToolsAddon;
 import dev.atos1k.auc.command.Permissions;
 import dev.atos1k.auc.util.CommandUtil;
 import dev.atos1k.auc.util.Formatters;
+import dev.atos1k.auc.util.Lang;
 import dev.atos1k.auc.util.LogTypes;
 import dev.atos1k.auc.util.Messages;
 import dev.atos1k.auc.util.NameResolver;
@@ -13,9 +14,6 @@ import dev.by1337.auc.common.auc.log.LogRecord;
 import dev.by1337.auc.common.auc.log.impl.WithItemStackLog;
 import dev.by1337.auc.common.auc.log.impl.WithLPriceLog;
 import dev.by1337.auc.handler.Auction;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.command.CommandSender;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -27,43 +25,30 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import org.bukkit.command.CommandSender;
 
 public class TransactionsHandler {
-
     private final AdminToolsAddon addon;
 
     public TransactionsHandler(AdminToolsAddon addon) {
         this.addon = addon;
     }
     
-    public void handleTransactions(CommandSender sender, Auction auction, String[] args) {
+    public void handleTransactions(CommandSender sender, Auction auction, Integer limitArg, String playerName,
+                                   String typeAlias, String before) {
         if (!sender.hasPermission(Permissions.TRANSACTIONS)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        int limit = 20;
-        String playerName = null;
-        String type = null;
-        Long beforeId = null;
-        for (String arg : args) {
-            if (arg.toLowerCase(Locale.ROOT).startsWith("before:")) {
-                beforeId = CommandUtil.parseLongOrNull(arg.substring(7));
-            } else if (CommandUtil.isNumeric(arg)) {
-                limit = CommandUtil.clamp(Integer.parseInt(arg), 1, 100);
-            } else if (LogTypes.TYPE_ALIASES.containsKey(arg.toLowerCase(Locale.ROOT))) {
-                type = LogTypes.TYPE_ALIASES.get(arg.toLowerCase(Locale.ROOT));
-            } else {
-                playerName = arg;
-            }
-        }
-        int finalLimit = limit;
-        String finalType = type;
-        Long finalBeforeId = beforeId;
+        int finalLimit = limitArg == null ? 20 : CommandUtil.clamp(limitArg, 1, 100);
+        String finalType = typeAlias == null ? null : LogTypes.TYPE_ALIASES.get(typeAlias.toLowerCase(Locale.ROOT));
+        Long finalBeforeId = before == null ? null
+                : CommandUtil.parseLongOrNull(before.toLowerCase(Locale.ROOT).startsWith("before:") ? before.substring(7) : before);
         if (playerName != null) {
             String finalPlayerName = playerName;
             auction.findUUID(playerName).then(pair -> {
                 if (pair == null) {
-                    sender.sendMessage(Messages.err("Игрок не найден: " + finalPlayerName));
+                    sender.sendMessage(Lang.get("general.player-not-found", "player", finalPlayerName));
                     return;
                 }
                 queryTransactions(sender, auction, pair.getKey(), finalType, finalLimit, finalBeforeId);
@@ -77,7 +62,7 @@ public class TransactionsHandler {
         LogQuery query = new LogQuery(null, beforeId, null, null, actor, null, type, limit);
         auction.loadLogs(query).then(records -> {
             if (records == null || records.isEmpty()) {
-                sender.sendMessage(Messages.info("Транзакций не найдено."));
+                sender.sendMessage(Lang.get("transactions.none-found"));
                 return;
             }
             sender.sendMessage(Messages.header("Транзакции (" + records.size() + ")"));
@@ -88,7 +73,7 @@ public class TransactionsHandler {
     void resolveAndPrint(CommandSender sender, Auction auction, List<LogRecord> records, int index, Map<UUID, String> nameCache) {
         if (index >= records.size()) {
             long minId = records.get(records.size() - 1).uid();
-            sender.sendMessage(Component.text("Ещё: добавьте \"before:" + minId + "\" к команде для более старых записей.", NamedTextColor.DARK_GRAY));
+            sender.sendMessage(Lang.get("transactions.before-hint", "id", minId));
             return;
         }
         LogRecord record = records.get(index);
@@ -111,29 +96,26 @@ public class TransactionsHandler {
                 }));
     }
     
-    public void handleItemHistory(CommandSender sender, Auction auction, String[] args) {
+    public void handleItemHistory(CommandSender sender, Auction auction, Integer itemIdArg, Integer hoursArg, Integer limitArg) {
         if (!sender.hasPermission(Permissions.ITEMHISTORY)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        if (args.length < 1 || !CommandUtil.isNumeric(args[0])) {
-            sender.sendMessage(Messages.err("Использование: /baucadmin itemhistory <item_id> [часы] [лимит]"));
+        if (itemIdArg == null) {
+            sender.sendMessage(Lang.get("usage.itemhistory"));
             return;
         }
-        int itemId = Integer.parseInt(args[0]);
-        int hours = 24 * 7;
-        int limit = 20;
-        if (args.length > 1 && CommandUtil.isNumeric(args[1])) hours = CommandUtil.clamp(Integer.parseInt(args[1]), 1, 24 * 90);
-        if (args.length > 2 && CommandUtil.isNumeric(args[2])) limit = CommandUtil.clamp(Integer.parseInt(args[2]), 1, 100);
+        int itemId = itemIdArg;
+        int hours = hoursArg == null ? 24 * 7 : CommandUtil.clamp(hoursArg, 1, 24 * 90);
         long after = System.currentTimeMillis() - hours * 3_600_000L;
-        int finalLimit = limit;
+        int finalLimit = limitArg == null ? 20 : CommandUtil.clamp(limitArg, 1, 100);
         int scanLimit = 3000;
 
         LogQuery query = new LogQuery(null, null, after, null, null, null, null, scanLimit);
         sender.sendMessage(Messages.info("Ищу историю предмета #" + itemId + "..."));
         auction.loadLogs(query).then(records -> {
             if (records == null || records.isEmpty()) {
-                sender.sendMessage(Messages.info("Записей за этот период не найдено."));
+                sender.sendMessage(Lang.get("itemhistory.none-in-period"));
                 return;
             }
             List<LogRecord> matching = new ArrayList<>();
@@ -144,7 +126,7 @@ public class TransactionsHandler {
                 }
             }
             if (matching.isEmpty()) {
-                sender.sendMessage(Messages.info("История предмета #" + itemId + " за этот период не найдена."));
+                sender.sendMessage(Lang.get("itemhistory.none-for-item", "id", itemId));
                 return;
             }
             sender.sendMessage(Messages.header("История предмета #" + itemId + " (" + matching.size() + ")"));
@@ -152,17 +134,13 @@ public class TransactionsHandler {
         });
     }
     
-    public void handleExport(CommandSender sender, Auction auction, String[] args) {
+    public void handleExport(CommandSender sender, Auction auction, Integer hoursArg, String typeAlias) {
         if (!sender.hasPermission(Permissions.EXPORT)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        int hours = 24;
-        String type = null;
-        for (String arg : args) {
-            if (CommandUtil.isNumeric(arg)) hours = CommandUtil.clamp(Integer.parseInt(arg), 1, 24 * 90);
-            else if (LogTypes.TYPE_ALIASES.containsKey(arg.toLowerCase(Locale.ROOT))) type = LogTypes.TYPE_ALIASES.get(arg.toLowerCase(Locale.ROOT));
-        }
+        int hours = hoursArg == null ? 24 : CommandUtil.clamp(hoursArg, 1, 24 * 90);
+        String type = typeAlias == null ? null : LogTypes.TYPE_ALIASES.get(typeAlias.toLowerCase(Locale.ROOT));
         int finalHours = hours;
         long after = System.currentTimeMillis() - hours * 3_600_000L;
         int scanLimit = 5000;
@@ -170,7 +148,7 @@ public class TransactionsHandler {
         sender.sendMessage(Messages.info("Выгружаю транзакции за последние " + finalHours + " ч..."));
         auction.loadLogs(query).then(records -> {
             if (records == null || records.isEmpty()) {
-                sender.sendMessage(Messages.info("Нечего экспортировать за этот период."));
+                sender.sendMessage(Lang.get("export.nothing"));
                 return;
             }
             exportRow(sender, auction, records, 0, new HashMap<>(), new ArrayList<>(), records.size() == scanLimit);
@@ -202,9 +180,9 @@ public class TransactionsHandler {
     }
 
     private void writeCsv(CommandSender sender, List<String[]> rows, boolean truncated) {
-        File dir = new File(addon.getPlugin().getDataFolder(), "exports");
+        File dir = new File(addon.dataFolder(), "exports");
         if (!dir.exists() && !dir.mkdirs()) {
-            sender.sendMessage(Messages.err("Не удалось создать папку для экспорта: " + dir.getPath()));
+            sender.sendMessage(Lang.get("export.folder-error", "path", dir.getPath()));
             return;
         }
         File file = new File(dir, "transactions_" + System.currentTimeMillis() + ".csv");
@@ -214,10 +192,10 @@ public class TransactionsHandler {
                 writer.println(String.join(";", row));
             }
         } catch (IOException e) {
-            sender.sendMessage(Messages.err("Ошибка записи файла: " + e.getMessage()));
+            sender.sendMessage(Lang.get("export.write-error", "error", e.getMessage()));
             return;
         }
-        sender.sendMessage(Messages.info("Экспортировано " + rows.size() + " записей: " + file.getPath()
-                + (truncated ? "  (Внимание: выборка обрезана лимитом)" : "")));
+        String truncatedSuffix = truncated ? Lang.rawFormatted("export.truncated-suffix") : "";
+        sender.sendMessage(Lang.get("export.done", "count", rows.size(), "path", file.getPath(), "truncated", truncatedSuffix));
     }
 }

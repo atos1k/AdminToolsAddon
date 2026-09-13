@@ -6,7 +6,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public final class Formatters {
-
     private Formatters() {
     }
 

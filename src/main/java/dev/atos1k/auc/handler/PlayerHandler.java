@@ -3,6 +3,7 @@ package dev.atos1k.auc.handler;
 import dev.atos1k.auc.AdminToolsAddon;
 import dev.atos1k.auc.command.Permissions;
 import dev.atos1k.auc.util.Formatters;
+import dev.atos1k.auc.util.Lang;
 import dev.atos1k.auc.util.LotScanner;
 import dev.atos1k.auc.util.Messages;
 import dev.by1337.auc.auc.ClientAucLot;
@@ -14,35 +15,31 @@ import dev.by1337.auc.common.auc.log.impl.WithLPriceLog;
 import dev.by1337.auc.handler.Auction;
 import dev.by1337.auc.handler.SimpleAuction;
 import dev.by1337.auc.search.PlayerVaultResult;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
-import org.bukkit.command.CommandSender;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.bukkit.Bukkit;
+import org.bukkit.command.CommandSender;
 
 public class PlayerHandler {
-
     private final AdminToolsAddon addon;
 
     public PlayerHandler(AdminToolsAddon addon) {
         this.addon = addon;
     }
     
-    public void handlePlayer(CommandSender sender, Auction auction, String[] args) {
+    public void handlePlayer(CommandSender sender, Auction auction, String name) {
         if (!sender.hasPermission(Permissions.PLAYER)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        if (args.length < 1) {
-            sender.sendMessage(Messages.err("Использование: /baucadmin player <ник>"));
+        if (name == null) {
+            sender.sendMessage(Lang.get("usage.player"));
             return;
         }
-        String name = args[0];
         auction.findUUID(name).then(pair -> {
             if (pair == null) {
-                sender.sendMessage(Messages.err("Игрок не найден: " + name));
+                sender.sendMessage(Lang.get("general.player-not-found", "player", name));
                 return;
             }
             UUID uuid = pair.getKey();
@@ -92,35 +89,32 @@ public class PlayerHandler {
                                 sender.sendMessage(Messages.kv("Заработано (посл. до 100 продаж)", Formatters.moneyFromCents(finalEarnedCents) + "  (" + finalSales + " шт.)"));
                                 sender.sendMessage(Messages.kv("Предметов в vault", String.valueOf(finalVaultCount)));
                                 sender.sendMessage(Messages.kv("Стоимость vault", Formatters.moneyFromCents(finalVaultValueCents)));
-                                sender.sendMessage(Component.text("Активные лоты — как обычно: ", NamedTextColor.GRAY)
-                                        .append(Component.text("/ah " + name, NamedTextColor.YELLOW)));
-                                sender.sendMessage(Component.text("Полная история: ", NamedTextColor.GRAY)
-                                        .append(Component.text("/baucadmin transactions 50 " + name, NamedTextColor.YELLOW)));
+                                sender.sendMessage(Lang.get("player.active-lots-hint", "player", name));
+                                sender.sendMessage(Lang.get("player.full-history-hint", "player", name));
                             });
                         });
                     }));
         });
     }
     
-    public void handleWipe(CommandSender sender, Auction auction, String[] args) {
+    public void handleWipe(CommandSender sender, Auction auction, String name, String confirm) {
         if (!sender.hasPermission(Permissions.WIPE)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        if (args.length < 1) {
-            sender.sendMessage(Messages.err("Использование: /baucadmin wipe <ник> confirm"));
+        if (name == null) {
+            sender.sendMessage(Lang.get("usage.wipe"));
             return;
         }
-        String name = args[0];
-        boolean confirmed = args.length > 1 && args[1].equalsIgnoreCase("confirm");
+        boolean confirmed = confirm != null && confirm.equalsIgnoreCase("confirm");
         if (!confirmed) {
-            sender.sendMessage(Messages.err("Это снимет ВСЕ активные лоты игрока " + name + " и перенесёт их в его vault."));
-            sender.sendMessage(Messages.err("Повторите с подтверждением: /baucadmin wipe " + name + " confirm"));
+            sender.sendMessage(Lang.get("player.wipe-confirm-warning1", "player", name));
+            sender.sendMessage(Lang.get("player.wipe-confirm-warning2", "player", name));
             return;
         }
         auction.findUUID(name).then(pair -> {
             if (pair == null) {
-                sender.sendMessage(Messages.err("Игрок не найден: " + name));
+                sender.sendMessage(Lang.get("general.player-not-found", "player", name));
                 return;
             }
             UUID uuid = pair.getKey();
@@ -128,7 +122,7 @@ public class PlayerHandler {
                 List<ClientAucLot> ownerLots = LotScanner.collectOwnedBy(auction, uuid);
 
                 if (ownerLots.isEmpty()) {
-                    Bukkit.getScheduler().runTask(addon.getPlugin(), () -> sender.sendMessage(Messages.info("У игрока " + name + " нет активных лотов.")));
+                    Bukkit.getScheduler().runTask(addon.getPlugin(), () -> sender.sendMessage(Lang.get("player.wipe-none", "player", name)));
                     return;
                 }
                 int total = ownerLots.size();
@@ -136,9 +130,13 @@ public class PlayerHandler {
                 AtomicInteger failCount = new AtomicInteger();
                 auction.parallel(
                         ownerLots.iterator(),
-                        () -> Bukkit.getScheduler().runTask(addon.getPlugin(), () ->
-                                sender.sendMessage(Messages.info("Готово: снято " + okCount.get() + "/" + total + " лотов игрока " + name
-                                        + (failCount.get() > 0 ? (", ошибок: " + failCount.get()) : "") + "."))),
+                        () -> Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                            String errorsSuffix = failCount.get() > 0
+                                    ? Lang.rawFormatted("player.wipe-done-errors-suffix", "errors", failCount.get())
+                                    : "";
+                            sender.sendMessage(Lang.get("player.wipe-done", "ok", okCount.get(), "total", total,
+                                    "player", name, "errors", errorsSuffix));
+                        }),
                         l -> auction.moveToVault(l, uuid),
                         (l, success) -> {
                             if (Boolean.TRUE.equals(success)) okCount.incrementAndGet();

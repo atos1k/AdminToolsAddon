@@ -9,7 +9,6 @@ import dev.by1337.auc.common.auc.log.impl.VaultLotExpirationLog;
 import java.util.Map;
 
 public final class LogTypes {
-
     private LogTypes() {
     }
 

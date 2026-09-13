@@ -4,6 +4,7 @@ import dev.atos1k.auc.AdminToolsAddon;
 import dev.atos1k.auc.command.Permissions;
 import dev.atos1k.auc.util.CommandUtil;
 import dev.atos1k.auc.util.Formatters;
+import dev.atos1k.auc.util.Lang;
 import dev.atos1k.auc.util.LotScanner;
 import dev.atos1k.auc.util.Messages;
 import dev.atos1k.auc.util.NameResolver;
@@ -11,11 +12,6 @@ import dev.by1337.auc.auc.ClientAucLot;
 import dev.by1337.auc.handler.Auction;
 import dev.by1337.auc.handler.SimpleAuction;
 import dev.by1337.auc.util.number.EconomyUtil;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
-import org.bukkit.command.CommandSender;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -24,25 +20,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.command.CommandSender;
 
 public class MarketHandler {
-
     private final AdminToolsAddon addon;
 
     public MarketHandler(AdminToolsAddon addon) {
         this.addon = addon;
     }
     
-    public void handleLiquid(CommandSender sender, Auction auction, String[] args) {
+    public void handleLiquid(CommandSender sender, Auction auction, Integer limitArg) {
         if (!sender.hasPermission(Permissions.LIQUID)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        int limit = 15;
-        if (args.length > 0 && CommandUtil.isNumeric(args[0])) {
-            limit = CommandUtil.clamp(Integer.parseInt(args[0]), 1, 50);
-        }
-        int finalLimit = limit;
+        int finalLimit = limitArg == null ? 15 : CommandUtil.clamp(limitArg, 1, 50);
         sender.sendMessage(Messages.info("Считаю ликвидность по активным лотам..."));
         SimpleAuction.WORKER.execute(() -> {
             List<ClientAucLot> lots = LotScanner.collectAllActive(auction);
@@ -65,15 +59,12 @@ public class MarketHandler {
                 for (var e : top) {
                     MaterialStats s = e.getValue();
                     double avg = s.lots == 0 ? 0 : EconomyUtil.fromCents(s.totalValueCents) / s.lots;
-                    sender.sendMessage(Component.text(rank + ". ", NamedTextColor.DARK_GRAY)
-                            .append(Component.text(e.getKey().name(), NamedTextColor.WHITE))
-                            .append(Component.text("  лотов: " + s.lots, NamedTextColor.AQUA))
-                            .append(Component.text("  предметов: " + s.items, NamedTextColor.GREEN))
-                            .append(Component.text("  сумма: " + Formatters.moneyFromCents(s.totalValueCents), NamedTextColor.GOLD))
-                            .append(Component.text("  средняя цена лота: " + Formatters.money(avg), NamedTextColor.YELLOW)));
+                    sender.sendMessage(Lang.get("market.liquid-line", "rank", rank, "material", e.getKey().name(),
+                            "lots", s.lots, "items", s.items,
+                            "total", Formatters.moneyFromCents(s.totalValueCents), "avg", Formatters.money(avg)));
                     rank++;
                 }
-                sender.sendMessage(Messages.info("Всего активных лотов: " + finalTotal + ", уникальных предметов: " + stats.size()));
+                sender.sendMessage(Lang.get("market.liquid-summary", "total", finalTotal, "unique", stats.size()));
             });
         });
     }
@@ -83,7 +74,6 @@ public class MarketHandler {
         long items;
         long totalValueCents;
     }
-
 
     public void handleStats(CommandSender sender, Auction auction) {
         if (!sender.hasPermission(Permissions.STATS)) {
@@ -121,18 +111,13 @@ public class MarketHandler {
         });
     }
     
-    public void handlePrice(CommandSender sender, Auction auction, String[] args) {
+    public void handlePrice(CommandSender sender, Auction auction, Material material) {
         if (!sender.hasPermission(Permissions.PRICE)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        if (args.length < 1) {
-            sender.sendMessage(Messages.err("Использование: /baucadmin price <материал>"));
-            return;
-        }
-        Material material = Material.matchMaterial(args[0]);
         if (material == null) {
-            sender.sendMessage(Messages.err("Неизвестный материал: " + args[0]));
+            sender.sendMessage(Lang.get("usage.price"));
             return;
         }
         Material finalMaterial = material;
@@ -146,7 +131,7 @@ public class MarketHandler {
 
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 if (matching.isEmpty()) {
-                    sender.sendMessage(Messages.info("Активных лотов с " + finalMaterial.name() + " сейчас нет."));
+                    sender.sendMessage(Lang.get("market.price-none", "material", finalMaterial.name()));
                     return;
                 }
                 long min = matching.get(0).lprice_for_one();
@@ -160,35 +145,27 @@ public class MarketHandler {
                 sender.sendMessage(Messages.kv("Мин. цена за шт.", Formatters.moneyFromCents(min)));
                 sender.sendMessage(Messages.kv("Средняя цена за шт.", Formatters.moneyFromCents((long) avg)));
                 sender.sendMessage(Messages.kv("Макс. цена за шт.", Formatters.moneyFromCents(max)));
-                sender.sendMessage(Component.text("Самые дешёвые лоты: ", NamedTextColor.GRAY));
+                sender.sendMessage(Lang.get("market.price-cheapest-header"));
                 for (int i = 0; i < Math.min(5, matching.size()); i++) {
                     ClientAucLot l = matching.get(i);
-                    sender.sendMessage(Component.text("  #" + l.uid() + "  ", NamedTextColor.DARK_GRAY)
-                            .append(Component.text(Formatters.moneyFromCents(l.lprice_for_one()) + "/шт.", NamedTextColor.GOLD))
-                            .append(Component.text("  x" + l.count(), NamedTextColor.WHITE)));
+                    sender.sendMessage(Lang.get("market.price-cheapest-line", "id", l.uid(),
+                            "price", Formatters.moneyFromCents(l.lprice_for_one()), "count", l.count()));
                 }
             });
         });
     }
     
-    public void handleFind(CommandSender sender, Auction auction, String[] args) {
+    public void handleFind(CommandSender sender, Auction auction, Material material, Integer limitArg) {
         if (!sender.hasPermission(Permissions.FIND)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        if (args.length < 1) {
-            sender.sendMessage(Messages.err("Использование: /baucadmin find <материал> [лимит]"));
-            return;
-        }
-        Material material = Material.matchMaterial(args[0]);
         if (material == null) {
-            sender.sendMessage(Messages.err("Неизвестный материал: " + args[0]));
+            sender.sendMessage(Lang.get("usage.find"));
             return;
         }
-        int limit = 20;
-        if (args.length > 1 && CommandUtil.isNumeric(args[1])) limit = CommandUtil.clamp(Integer.parseInt(args[1]), 1, 50);
         Material finalMaterial = material;
-        int finalLimit = limit;
+        int finalLimit = limitArg == null ? 20 : CommandUtil.clamp(limitArg, 1, 50);
 
         SimpleAuction.WORKER.execute(() -> {
             List<ClientAucLot> lots = LotScanner.collectAllActive(auction);
@@ -199,7 +176,7 @@ public class MarketHandler {
             }
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 if (matching.isEmpty()) {
-                    sender.sendMessage(Messages.info("Активных лотов с " + finalMaterial.name() + " не найдено."));
+                    sender.sendMessage(Lang.get("market.find-none", "material", finalMaterial.name()));
                     return;
                 }
                 sender.sendMessage(Messages.header("Найдено лотов: " + matching.size() + (matching.size() == finalLimit ? "+" : "")));
@@ -213,30 +190,20 @@ public class MarketHandler {
         ClientAucLot lot = lots.get(index);
         NameResolver.resolve(auction, lot.owner(), cache, ownerName ->
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                    sender.sendMessage(Component.text("  #" + lot.uid() + "  ", NamedTextColor.DARK_GRAY)
-                            .append(Component.text(ownerName != null ? ownerName : lot.owner().toString(), NamedTextColor.GREEN))
-                            .append(Component.text("  x" + lot.count(), NamedTextColor.WHITE))
-                            .append(Component.text("  " + Formatters.money(lot.dprice()), NamedTextColor.GOLD)));
+                    sender.sendMessage(Lang.get("market.find-line", "id", lot.uid(),
+                            "owner", ownerName != null ? ownerName : lot.owner().toString(),
+                            "count", lot.count(), "price", Formatters.money(lot.dprice())));
                     printFindResults(sender, auction, lots, index + 1, cache);
                 }));
     }
     
-    public void handleSuspicious(CommandSender sender, Auction auction, String[] args) {
+    public void handleSuspicious(CommandSender sender, Auction auction, Integer thresholdArg, Integer limitArg) {
         if (!sender.hasPermission(Permissions.SUSPICIOUS)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        int thresholdPercent = 35;
-        int limit = 20;
-        for (String arg : args) {
-            if (CommandUtil.isNumeric(arg)) {
-                int v = Integer.parseInt(arg);
-                if (v <= 100) thresholdPercent = CommandUtil.clamp(v, 1, 99);
-                else limit = CommandUtil.clamp(v, 1, 50);
-            }
-        }
-        int finalThreshold = thresholdPercent;
-        int finalLimit = limit;
+        int finalThreshold = thresholdArg == null ? 35 : CommandUtil.clamp(thresholdArg, 1, 99);
+        int finalLimit = limitArg == null ? 20 : CommandUtil.clamp(limitArg, 1, 50);
         sender.sendMessage(Messages.info("Ищу подозрительно дешёвые лоты (порог " + finalThreshold + "% от средней цены)..."));
 
         SimpleAuction.WORKER.execute(() -> {
@@ -263,7 +230,7 @@ public class MarketHandler {
 
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 if (top.isEmpty()) {
-                    sender.sendMessage(Messages.info("Подозрительных лотов не найдено."));
+                    sender.sendMessage(Lang.get("market.suspicious-none"));
                     return;
                 }
                 sender.sendMessage(Messages.header("Подозрительно дешёвые лоты (" + top.size() + ")"));
@@ -278,12 +245,12 @@ public class MarketHandler {
         double avg = (double) entries.get(index)[1];
         double ratio = (double) entries.get(index)[2];
         NameResolver.resolve(auction, lot.owner(), cache, ownerName -> {
-            sender.sendMessage(Component.text("  #" + lot.uid() + "  ", NamedTextColor.DARK_GRAY)
-                    .append(Component.text(lot.itemStack().material().name(), NamedTextColor.WHITE))
-                    .append(Component.text("  цена/шт: " + Formatters.moneyFromCents(lot.lprice_for_one()), NamedTextColor.RED))
-                    .append(Component.text("  средняя: " + Formatters.moneyFromCents((long) avg), NamedTextColor.GRAY))
-                    .append(Component.text("  (" + Math.round(ratio * 100) + "%)", NamedTextColor.YELLOW))
-                    .append(Component.text("  владелец: " + (ownerName != null ? ownerName : lot.owner()), NamedTextColor.GREEN)));
+            sender.sendMessage(Lang.get("market.suspicious-line", "id", lot.uid(),
+                    "material", lot.itemStack().material().name(),
+                    "price", Formatters.moneyFromCents(lot.lprice_for_one()),
+                    "avg", Formatters.moneyFromCents((long) avg),
+                    "percent", Math.round(ratio * 100),
+                    "owner", ownerName != null ? ownerName : lot.owner().toString()));
             printSuspicious(sender, auction, entries, index + 1, cache);
         });
     }

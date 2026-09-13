@@ -1,46 +1,44 @@
 package dev.atos1k.auc.handler;
 
-import dev.by1337.auc.BAuction;
 import dev.atos1k.auc.AdminToolsAddon;
 import dev.atos1k.auc.command.Permissions;
 import dev.atos1k.auc.util.CommandUtil;
 import dev.atos1k.auc.util.Formatters;
+import dev.atos1k.auc.util.Lang;
 import dev.atos1k.auc.util.Messages;
+import dev.by1337.auc.BAuction;
 import dev.by1337.auc.auc.ClientAucLot;
 import dev.by1337.auc.common.auc.log.impl.AddLotLog;
 import dev.by1337.auc.handler.Auction;
 import dev.by1337.auc.handler.SimpleAuction;
 import dev.by1337.auc.util.number.EconomyUtil;
+import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import java.util.UUID;
-
 
 public class LotHandler {
-
     private final AdminToolsAddon addon;
 
     public LotHandler(AdminToolsAddon addon) {
         this.addon = addon;
     }
 
-
-    public void handleLot(CommandSender sender, Auction auction, String[] args) {
+    public void handleLot(CommandSender sender, Auction auction, Integer id) {
         if (!sender.hasPermission(Permissions.LOT)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        if (args.length < 1 || !CommandUtil.isNumeric(args[0])) {
-            sender.sendMessage(Messages.err("Использование: /baucadmin lot <id>"));
+        if (id == null) {
+            sender.sendMessage(Lang.get("usage.lot"));
             return;
         }
-        int uid = Integer.parseInt(args[0]);
+        int uid = id;
         SimpleAuction.WORKER.execute(() -> {
             ClientAucLot lot = auction.getLot(uid);
             if (lot == null) {
-                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> sender.sendMessage(Messages.err("Лот #" + uid + " не найден (продан/снят/не существует).")));
+                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> sender.sendMessage(Lang.get("lot.not-found", "id", uid)));
                 return;
             }
             auction.loadName(lot.owner()).then(ownerName -> Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
@@ -54,60 +52,57 @@ public class LotHandler {
         });
     }
 
-
-    public void handleRemoveLot(CommandSender sender, Auction auction, String[] args) {
+    public void handleRemoveLot(CommandSender sender, Auction auction, Integer id) {
         if (!sender.hasPermission(Permissions.REMOVELOT)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        if (args.length < 1 || !CommandUtil.isNumeric(args[0])) {
-            sender.sendMessage(Messages.err("Использование: /baucadmin removelot <id>"));
+        if (id == null) {
+            sender.sendMessage(Lang.get("usage.removelot"));
             return;
         }
-        int uid = Integer.parseInt(args[0]);
+        int uid = id;
         SimpleAuction.WORKER.execute(() -> {
             ClientAucLot lot = auction.getLot(uid);
             if (lot == null) {
-                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> sender.sendMessage(Messages.err("Лот #" + uid + " не найден.")));
+                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> sender.sendMessage(Lang.get("lot.removelot-not-found", "id", uid)));
                 return;
             }
             auction.moveToVault(lot, lot.owner()).then(success -> Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 if (Boolean.TRUE.equals(success)) {
-                    sender.sendMessage(Messages.info("Лот #" + uid + " снят с аукциона и перемещён в vault владельца."));
+                    sender.sendMessage(Lang.get("lot.removelot-success", "id", uid));
                 } else {
-                    sender.sendMessage(Messages.err("Не удалось снять лот #" + uid + "."));
+                    sender.sendMessage(Lang.get("lot.removelot-fail", "id", uid));
                 }
             }));
         });
     }
     
-    public void handleGive(CommandSender sender, Auction auction, String[] args) {
+    public void handleGive(CommandSender sender, Auction auction, String targetName, Double price,
+                           Integer countArg, Integer hoursArg) {
         if (!sender.hasPermission(Permissions.GIVE)) {
             sender.sendMessage(Messages.deny());
             return;
         }
         if (!(sender instanceof Player admin)) {
-            sender.sendMessage(Messages.err("Эту команду можно использовать только в игре — нужен предмет в руке."));
+            sender.sendMessage(Lang.get("lot.give-not-player"));
             return;
         }
-        if (args.length < 2) {
-            sender.sendMessage(Messages.err("Использование: /baucadmin give <ник> <цена> [кол-во] [часы]"));
+        if (targetName == null || price == null) {
+            sender.sendMessage(Lang.get("usage.give"));
             return;
         }
-        String targetName = args[0];
-        Double price = CommandUtil.parseDoubleOrNull(args[1]);
-        if (price == null || price <= 0) {
-            sender.sendMessage(Messages.err("Некорректная цена."));
+        if (price <= 0) {
+            sender.sendMessage(Lang.get("lot.give-bad-price"));
             return;
         }
-        int count = 1;
-        if (args.length > 2 && CommandUtil.isNumeric(args[2])) count = CommandUtil.clamp(Integer.parseInt(args[2]), 1, 6400);
+        int count = countArg == null ? 1 : CommandUtil.clamp(countArg, 1, 6400);
         Long durationHours = null;
-        if (args.length > 3 && CommandUtil.isNumeric(args[3])) durationHours = (long) CommandUtil.clamp(Integer.parseInt(args[3]), 1, 24 * 30);
+        if (hoursArg != null) durationHours = (long) CommandUtil.clamp(hoursArg, 1, 24 * 30);
 
         ItemStack held = admin.getInventory().getItemInMainHand();
         if (held.getType().isAir()) {
-            sender.sendMessage(Messages.err("Возьмите в руку предмет, который хотите выставить лотом."));
+            sender.sendMessage(Lang.get("lot.give-empty-hand"));
             return;
         }
         ItemStack template = held.asOne();
@@ -118,18 +113,18 @@ public class LotHandler {
 
         auction.findUUID(targetName).then(pair -> {
             if (pair == null) {
-                sender.sendMessage(Messages.err("Игрок не найден: " + targetName));
+                sender.sendMessage(Lang.get("general.player-not-found", "player", targetName));
                 return;
             }
             UUID targetUuid = pair.getKey();
             auction.addLot(template, targetUuid, sellingDuration, finalCount, lprice).then(ghostLot -> {
                 if (ghostLot == null) {
-                    sender.sendMessage(Messages.err("Не удалось создать лот (аукцион отключён или отклонена цена)."));
+                    sender.sendMessage(Lang.get("lot.give-fail"));
                     return;
                 }
                 auction.publishLog(new AddLotLog(System.currentTimeMillis(), targetUuid, lprice, ghostLot.itemStack().id(), finalCount));
-                sender.sendMessage(Messages.info("Лот создан: " + template.getType().name() + " x" + finalCount
-                        + " для " + targetName + " за " + Formatters.money(finalPrice) + ". Ваш инвентарь не тронут."));
+                sender.sendMessage(Lang.get("lot.give-success", "item", template.getType().name(), "count", finalCount,
+                        "player", targetName, "price", Formatters.money(finalPrice)));
             });
         });
     }

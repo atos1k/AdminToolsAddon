@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.UUID;
 
 public final class LotScanner {
-
     private LotScanner() {
     }
 

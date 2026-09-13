@@ -1,12 +1,10 @@
 package dev.atos1k.auc.command;
 
-
 public final class Permissions {
-
     private Permissions() {
     }
 
-    public static final String BASE = "bauc.admin";
+    public static final String BASE = "aha.tools";
     public static final String TRANSACTIONS = BASE + ".transactions";
     public static final String ITEMHISTORY = BASE + ".itemhistory";
     public static final String EXPORT = BASE + ".export";
@@ -25,14 +23,22 @@ public final class Permissions {
     public static final String WIPE = BASE + ".wipe";
     public static final String WATCH = BASE + ".watch";
     public static final String ANNOUNCE = BASE + ".announce";
-    
-    public static final String[] ALL = {
-            BASE,
+    public static final String BAN = BASE + ".ban";
+    public static final String BLACKLIST = BASE + ".blacklist";
+    public static final String ITEM = BASE + ".item";
+    public static final String HOURS = BASE + ".hours";
+    public static final String CONCENTRATION = BASE + ".concentration";
+    public static final String LAUNDERING = BASE + ".laundering";
+    public static final String OVERPRICED = BASE + ".overpriced";
+
+    public static final String[] CHILD = {
             TRANSACTIONS, ITEMHISTORY, EXPORT,
             LIQUID, STATS, PRICE, FIND, SUSPICIOUS,
             TREND, TURNOVER, TOP,
             LOT, REMOVELOT, GIVE,
             PLAYER, WIPE,
-            WATCH, ANNOUNCE
+            WATCH, ANNOUNCE,
+            BAN, BLACKLIST,
+            ITEM, HOURS, CONCENTRATION, LAUNDERING, OVERPRICED
     };
 }

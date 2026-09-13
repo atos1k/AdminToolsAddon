@@ -3,15 +3,13 @@ package dev.atos1k.auc.handler;
 import dev.atos1k.auc.command.Permissions;
 import dev.atos1k.auc.util.CommandUtil;
 import dev.atos1k.auc.util.Formatters;
+import dev.atos1k.auc.util.Lang;
 import dev.atos1k.auc.util.Messages;
 import dev.by1337.auc.common.auc.log.LogQuery;
 import dev.by1337.auc.common.auc.log.LogRecord;
 import dev.by1337.auc.common.auc.log.impl.BuyAuctionLog;
 import dev.by1337.auc.common.auc.log.impl.WithLPriceLog;
 import dev.by1337.auc.handler.Auction;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.command.CommandSender;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -20,11 +18,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
-
+import net.kyori.adventure.text.Component;
+import org.bukkit.command.CommandSender;
 
 public class ActivityHandler {
-
-
     private record Volume(int count, long sumCents) {
     }
 
@@ -60,20 +57,17 @@ public class ActivityHandler {
     }
 
     private Component trendLine(String label, Volume v) {
-        return Component.text(label + ": ", NamedTextColor.GRAY)
-                .append(Component.text(v.count() + " сделок", NamedTextColor.AQUA))
-                .append(Component.text("  " + Formatters.moneyFromCents(v.sumCents()), NamedTextColor.GOLD));
+        return Lang.get("activity.trend-line", "label", label, "count", v.count(),
+                "volume", Formatters.moneyFromCents(v.sumCents()));
     }
 
-
-    public void handleTurnover(CommandSender sender, Auction auction, String[] args) {
+    public void handleTurnover(CommandSender sender, Auction auction, Integer hoursArg) {
         if (!sender.hasPermission(Permissions.TURNOVER)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        int hours = 24;
-        if (args.length > 0 && CommandUtil.isNumeric(args[0])) hours = CommandUtil.clamp(Integer.parseInt(args[0]), 1, 24 * 30);
-        int finalHours = hours;
+        int finalHours = hoursArg == null ? 24 : CommandUtil.clamp(hoursArg, 1, 24 * 30);
+        int hours = finalHours;
         long afterTimestamp = System.currentTimeMillis() - hours * 3_600_000L;
         int scanLimit = 2000;
 
@@ -81,7 +75,7 @@ public class ActivityHandler {
         sender.sendMessage(Messages.info("Считаю оборот за последние " + finalHours + " ч..."));
         auction.loadLogs(query).then(records -> {
             if (records == null || records.isEmpty()) {
-                sender.sendMessage(Messages.info("За этот период покупок не было."));
+                sender.sendMessage(Lang.get("activity.turnover-none"));
                 return;
             }
             long totalCents = 0;
@@ -98,32 +92,19 @@ public class ActivityHandler {
             sender.sendMessage(Messages.kv("Уникальных покупателей", String.valueOf(buyers.size())));
             sender.sendMessage(Messages.kv("Уникальных продавцов", String.valueOf(sellers.size())));
             if (records.size() == scanLimit) {
-                sender.sendMessage(Component.text("Внимание: выборка обрезана лимитом (" + scanLimit + "), реальный оборот может быть выше.", NamedTextColor.DARK_GRAY));
+                sender.sendMessage(Lang.get("activity.truncated", "limit", scanLimit));
             }
         });
     }
     
-    public void handleTop(CommandSender sender, Auction auction, String[] args) {
+    public void handleTop(CommandSender sender, Auction auction, String side, Integer hoursArg, Integer limitArg) {
         if (!sender.hasPermission(Permissions.TOP)) {
             sender.sendMessage(Messages.deny());
             return;
         }
-        boolean byBuyers = true;
-        int hours = 24;
-        int leaderboardSize = 10;
-        for (String arg : args) {
-            String lower = arg.toLowerCase(java.util.Locale.ROOT);
-            if (lower.equals("buyers")) byBuyers = true;
-            else if (lower.equals("sellers")) byBuyers = false;
-            else if (CommandUtil.isNumeric(arg)) {
-                int v = Integer.parseInt(arg);
-                if (v <= 100) leaderboardSize = CommandUtil.clamp(v, 1, 50);
-                else hours = CommandUtil.clamp(v, 1, 24 * 30);
-            }
-        }
-        boolean finalByBuyers = byBuyers;
-        int finalLeaderboardSize = leaderboardSize;
-        int finalHours = hours;
+        boolean finalByBuyers = side == null || !side.equalsIgnoreCase("sellers");
+        int finalHours = hoursArg == null ? 24 : CommandUtil.clamp(hoursArg, 1, 24 * 30);
+        int finalLeaderboardSize = limitArg == null ? 10 : CommandUtil.clamp(limitArg, 1, 50);
         long afterTimestamp = System.currentTimeMillis() - finalHours * 3_600_000L;
         int scanLimit = 1000;
 
@@ -131,7 +112,7 @@ public class ActivityHandler {
         sender.sendMessage(Messages.info("Считаю топ за последние " + finalHours + " ч. (по последним до " + scanLimit + " покупкам)..."));
         auction.loadLogs(query).then(records -> {
             if (records == null || records.isEmpty()) {
-                sender.sendMessage(Messages.info("За этот период покупок не найдено."));
+                sender.sendMessage(Lang.get("activity.top-none"));
                 return;
             }
             Map<UUID, long[]> agg = new HashMap<>();
@@ -150,7 +131,7 @@ public class ActivityHandler {
             sender.sendMessage(Messages.header("Топ " + (finalByBuyers ? "покупателей" : "продавцов") + " за " + finalHours + " ч."));
             printTopEntries(sender, auction, top, 0, 1);
             if (records.size() == scanLimit) {
-                sender.sendMessage(Component.text("Внимание: выборка обрезана лимитом (" + scanLimit + " покупок), реальные тоталы могут быть выше.", NamedTextColor.DARK_GRAY));
+                sender.sendMessage(Lang.get("activity.truncated", "limit", scanLimit));
             }
         });
     }
@@ -162,10 +143,8 @@ public class ActivityHandler {
             String name = pn != null ? pn.name() : e.getKey().toString();
             long totalCents = e.getValue()[0];
             long count = e.getValue()[1];
-            sender.sendMessage(Component.text(rank + ". ", NamedTextColor.DARK_GRAY)
-                    .append(Component.text(name, NamedTextColor.WHITE))
-                    .append(Component.text("  сумма: " + Formatters.moneyFromCents(totalCents), NamedTextColor.GOLD))
-                    .append(Component.text("  сделок: " + count, NamedTextColor.AQUA)));
+            sender.sendMessage(Lang.get("activity.top-line", "rank", rank, "player", name,
+                    "volume", Formatters.moneyFromCents(totalCents), "count", count));
             printTopEntries(sender, auction, entries, index + 1, rank + 1);
         });
     }
