@@ -49,12 +49,10 @@ public class AnalyticsHandler {
         sender.sendMessage(Lang.get("item.collecting", "material", material.name()));
 
         SimpleAuction.WORKER.execute(() -> {
-            List<ClientAucLot> lots = LotScanner.collectAllActive(auction);
-            List<ClientAucLot> active = new ArrayList<>();
+            List<ClientAucLot> active = LotScanner.collectByMaterial(auction, material);
             Map<Integer, Material> knownItems = new HashMap<>();
-            for (ClientAucLot lot : lots) {
+            for (ClientAucLot lot : LotScanner.collectAllActive(auction)) {
                 knownItems.put(lot.itemStack().id(), lot.itemStack().material());
-                if (lot.itemStack().material() == material) active.add(lot);
             }
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 LogQuery query = new LogQuery(null, null, after, null, null, null, BuyAuctionLog.ID, 3000);

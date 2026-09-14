@@ -252,4 +252,4 @@ announce:
   sent: "<#00FF00>[✔] <#FFFFE6>Объявление отправлено <#FFFF00>%count%<#FFFFE6> игрокам!"
 
 reload:
-  success: "<#00FF00>[✔] <#FFFFE6>Файлы успешно перезагружены!"
+  success: "<#00FF00>[✔] <#FFFFE6>Файлы успешно перезагружены за <#FFFF00>%time%<#FFFFE6> мс!"

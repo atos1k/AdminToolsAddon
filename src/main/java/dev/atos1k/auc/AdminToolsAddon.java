@@ -26,7 +26,7 @@ import dev.by1337.auc.transaction.Transaction;
 import dev.by1337.bmenu.command.ExecuteContext;
 import dev.by1337.cmd.Command;
 import java.io.File;
-import java.lang.reflect.Field;
+import java.lang.reflect.Proxy;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -47,10 +47,11 @@ public class AdminToolsAddon extends AbstractAddon {
     private Storage storage;
     private BanManager bans;
     private BlacklistManager blacklist;
-    private final Map<Class<?>, Field> whoFields = new ConcurrentHashMap<>();
     private final Map<UUID, WatchFilter> watchers = new ConcurrentHashMap<>();
     private volatile WatchFilter consoleWatch = null;
     private volatile Auction listenerRegisteredOn = null;
+    private volatile Command<CommandSender> adminRoot;
+    private volatile Command<CommandSender> wrappedReload;
 
     public File dataFolder() {
         File folder = new File(new File(getPlugin().getDataFolder(), "addons"), getDescription().name());
@@ -135,7 +136,7 @@ public class AdminToolsAddon extends AbstractAddon {
         UUID who;
         if (transaction instanceof BuyLotTransaction t) {
             type = BanTypes.BUY;
-            who = readWho(t);
+            who = t.who();
         } else if (transaction instanceof AddLotTransaction t) {
             String match = blacklist == null ? null : blacklist.findMatch(t.itemStack());
             if (match != null) {
@@ -149,13 +150,13 @@ public class AdminToolsAddon extends AbstractAddon {
             who = t.who();
         } else if (transaction instanceof TakeLotTransaction t) {
             type = BanTypes.TAKE;
-            who = readWho(t);
+            who = t.who();
         } else if (transaction instanceof TakeVaultLotTransaction t) {
             type = BanTypes.VAULT;
-            who = readWho(t);
+            who = t.who();
         } else if (transaction instanceof ResellTransaction t) {
             type = BanTypes.RESELL;
-            who = readWho(t);
+            who = t.who();
         } else {
             return false;
         }
@@ -174,25 +175,6 @@ public class AdminToolsAddon extends AbstractAddon {
                     DurationUtil.format(entry.expires() - System.currentTimeMillis())));
         }
         return true;
-    }
-
-    private UUID readWho(Object transaction) {
-        Class<?> cl = transaction.getClass();
-        Field field = whoFields.get(cl);
-        if (field == null) {
-            try {
-                field = cl.getDeclaredField("who");
-                field.setAccessible(true);
-            } catch (ReflectiveOperationException e) {
-                return null;
-            }
-            whoFields.put(cl, field);
-        }
-        try {
-            return (UUID) field.get(transaction);
-        } catch (ReflectiveOperationException e) {
-            return null;
-        }
     }
 
     @Override
@@ -229,7 +211,39 @@ public class AdminToolsAddon extends AbstractAddon {
     }
 
     @Override
+    public void onPostEnabled(BAuction auction) {
+        wrapReload();
+    }
+
+    private void wrapReload() {
+        Command<CommandSender> root = adminRoot;
+        if (root == null) return;
+        Command<CommandSender> reload = root.getSubCommands().get("reload");
+        if (reload == null || reload == wrappedReload) return;
+        var original = reload.getExecutor();
+        if (original == null) return;
+        reload.executor((sender, args) -> {
+            long nanos = System.nanoTime();
+            original.execute(muted(sender), args);
+            sender.sendMessage(Lang.get("reload.success", "time", 
+                    String.format("%.1f", (System.nanoTime() - nanos) / 1_000_000D)));
+        });
+        wrappedReload = reload;
+    }
+
+    private static CommandSender muted(CommandSender sender) {
+        return (CommandSender) Proxy.newProxyInstance(
+                CommandSender.class.getClassLoader(),
+                new Class<?>[]{CommandSender.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("sendMessage")) return null;
+                    return method.invoke(sender, args);
+                });
+    }
+
+    @Override
     public Command<CommandSender> bootAdminCommands(Command<CommandSender> base) {
+        adminRoot = base;
         try {
             return AdminCommands.install(this, base);
         } catch (Throwable e) {

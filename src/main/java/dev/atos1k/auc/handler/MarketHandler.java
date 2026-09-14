@@ -122,12 +122,8 @@ public class MarketHandler {
         }
         Material finalMaterial = material;
         SimpleAuction.WORKER.execute(() -> {
-            List<ClientAucLot> lots = LotScanner.collectAllActive(auction);
-            List<ClientAucLot> matching = new ArrayList<>();
-            for (ClientAucLot lot : lots) {
-                if (lot.itemStack().material() == finalMaterial) matching.add(lot);
-            }
-            matching.sort(Comparator.comparingLong(ClientAucLot::lprice_for_one));
+            List<ClientAucLot> matching = LotScanner.collectByMaterial(auction, finalMaterial);
+            matching.sort(Comparator.comparingLong(ClientAucLot::centsPriceForOne));
 
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 if (matching.isEmpty()) {
@@ -168,12 +164,8 @@ public class MarketHandler {
         int finalLimit = limitArg == null ? 20 : CommandUtil.clamp(limitArg, 1, 50);
 
         SimpleAuction.WORKER.execute(() -> {
-            List<ClientAucLot> lots = LotScanner.collectAllActive(auction);
-            List<ClientAucLot> matching = new ArrayList<>();
-            for (ClientAucLot lot : lots) {
-                if (lot.itemStack().material() == finalMaterial) matching.add(lot);
-                if (matching.size() >= finalLimit) break;
-            }
+            List<ClientAucLot> all = LotScanner.collectByMaterial(auction, finalMaterial);
+            List<ClientAucLot> matching = all.size() > finalLimit ? new ArrayList<>(all.subList(0, finalLimit)) : all;
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 if (matching.isEmpty()) {
                     sender.sendMessage(Lang.get("market.find-none", "material", finalMaterial.name()));
