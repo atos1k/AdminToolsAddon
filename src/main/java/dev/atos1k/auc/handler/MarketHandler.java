@@ -2,6 +2,7 @@ package dev.atos1k.auc.handler;
 
 import dev.atos1k.auc.AdminToolsAddon;
 import dev.atos1k.auc.command.Permissions;
+import dev.atos1k.auc.util.AddonConfig;
 import dev.atos1k.auc.util.CommandUtil;
 import dev.atos1k.auc.util.Formatters;
 import dev.atos1k.auc.util.Lang;
@@ -33,10 +34,10 @@ public class MarketHandler {
     
     public void handleLiquid(CommandSender sender, Auction auction, Integer limitArg) {
         if (!sender.hasPermission(Permissions.LIQUID)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
-        int finalLimit = limitArg == null ? 15 : CommandUtil.clamp(limitArg, 1, 50);
+        int finalLimit = AddonConfig.limit("liquid", limitArg, 15, 50);
         sender.sendMessage(Messages.info("Считаю ликвидность по активным лотам..."));
         SimpleAuction.WORKER.execute(() -> {
             List<ClientAucLot> lots = LotScanner.collectAllActive(auction);
@@ -59,12 +60,12 @@ public class MarketHandler {
                 for (var e : top) {
                     MaterialStats s = e.getValue();
                     double avg = s.lots == 0 ? 0 : EconomyUtil.fromCents(s.totalValueCents) / s.lots;
-                    sender.sendMessage(Lang.get("market.liquid-line", "rank", rank, "material", e.getKey().name(),
+                    Lang.send(sender, "market.liquid-line", "rank", rank, "material", e.getKey().name(),
                             "lots", s.lots, "items", s.items,
-                            "total", Formatters.moneyFromCents(s.totalValueCents), "avg", Formatters.money(avg)));
+                            "total", Formatters.moneyFromCents(s.totalValueCents), "avg", Formatters.money(avg));
                     rank++;
                 }
-                sender.sendMessage(Lang.get("market.liquid-summary", "total", finalTotal, "unique", stats.size()));
+                Lang.send(sender, "market.liquid-summary", "total", finalTotal, "unique", stats.size());
             });
         });
     }
@@ -77,7 +78,7 @@ public class MarketHandler {
 
     public void handleStats(CommandSender sender, Auction auction) {
         if (!sender.hasPermission(Permissions.STATS)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         sender.sendMessage(Messages.info("Собираю статистику..."));
@@ -113,11 +114,11 @@ public class MarketHandler {
     
     public void handlePrice(CommandSender sender, Auction auction, Material material) {
         if (!sender.hasPermission(Permissions.PRICE)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         if (material == null) {
-            sender.sendMessage(Lang.get("usage.price"));
+            Lang.send(sender, "usage.price");
             return;
         }
         Material finalMaterial = material;
@@ -127,7 +128,7 @@ public class MarketHandler {
 
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 if (matching.isEmpty()) {
-                    sender.sendMessage(Lang.get("market.price-none", "material", finalMaterial.name()));
+                    Lang.send(sender, "market.price-none", "material", finalMaterial.name());
                     return;
                 }
                 long min = matching.get(0).lprice_for_one();
@@ -141,11 +142,11 @@ public class MarketHandler {
                 sender.sendMessage(Messages.kv("Мин. цена за шт.", Formatters.moneyFromCents(min)));
                 sender.sendMessage(Messages.kv("Средняя цена за шт.", Formatters.moneyFromCents((long) avg)));
                 sender.sendMessage(Messages.kv("Макс. цена за шт.", Formatters.moneyFromCents(max)));
-                sender.sendMessage(Lang.get("market.price-cheapest-header"));
+                Lang.send(sender, "market.price-cheapest-header");
                 for (int i = 0; i < Math.min(5, matching.size()); i++) {
                     ClientAucLot l = matching.get(i);
-                    sender.sendMessage(Lang.get("market.price-cheapest-line", "id", l.uid(),
-                            "price", Formatters.moneyFromCents(l.lprice_for_one()), "count", l.count()));
+                    Lang.send(sender, "market.price-cheapest-line", "id", l.uid(),
+                            "price", Formatters.moneyFromCents(l.lprice_for_one()), "count", l.count());
                 }
             });
         });
@@ -153,22 +154,22 @@ public class MarketHandler {
     
     public void handleFind(CommandSender sender, Auction auction, Material material, Integer limitArg) {
         if (!sender.hasPermission(Permissions.FIND)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         if (material == null) {
-            sender.sendMessage(Lang.get("usage.find"));
+            Lang.send(sender, "usage.find");
             return;
         }
         Material finalMaterial = material;
-        int finalLimit = limitArg == null ? 20 : CommandUtil.clamp(limitArg, 1, 50);
+        int finalLimit = AddonConfig.limit("find", limitArg, 20, 50);
 
         SimpleAuction.WORKER.execute(() -> {
             List<ClientAucLot> all = LotScanner.collectByMaterial(auction, finalMaterial);
             List<ClientAucLot> matching = all.size() > finalLimit ? new ArrayList<>(all.subList(0, finalLimit)) : all;
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 if (matching.isEmpty()) {
-                    sender.sendMessage(Lang.get("market.find-none", "material", finalMaterial.name()));
+                    Lang.send(sender, "market.find-none", "material", finalMaterial.name());
                     return;
                 }
                 sender.sendMessage(Messages.header("Найдено лотов: " + matching.size() + (matching.size() == finalLimit ? "+" : "")));
@@ -182,20 +183,20 @@ public class MarketHandler {
         ClientAucLot lot = lots.get(index);
         NameResolver.resolve(auction, lot.owner(), cache, ownerName ->
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                    sender.sendMessage(Lang.get("market.find-line", "id", lot.uid(),
+                    Lang.send(sender, "market.find-line", "id", lot.uid(),
                             "owner", ownerName != null ? ownerName : lot.owner().toString(),
-                            "count", lot.count(), "price", Formatters.money(lot.dprice())));
+                            "count", lot.count(), "price", Formatters.money(lot.dprice()));
                     printFindResults(sender, auction, lots, index + 1, cache);
                 }));
     }
     
     public void handleSuspicious(CommandSender sender, Auction auction, Integer thresholdArg, Integer limitArg) {
         if (!sender.hasPermission(Permissions.SUSPICIOUS)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
-        int finalThreshold = thresholdArg == null ? 35 : CommandUtil.clamp(thresholdArg, 1, 99);
-        int finalLimit = limitArg == null ? 20 : CommandUtil.clamp(limitArg, 1, 50);
+        int finalThreshold = CommandUtil.clamp(thresholdArg == null ? AddonConfig.i("suspicious.default-threshold-percent", 35) : thresholdArg, 1, 99);
+        int finalLimit = AddonConfig.limit("suspicious", limitArg, 20, 50);
         sender.sendMessage(Messages.info("Ищу подозрительно дешёвые лоты (порог " + finalThreshold + "% от средней цены)..."));
 
         SimpleAuction.WORKER.execute(() -> {
@@ -222,7 +223,7 @@ public class MarketHandler {
 
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 if (top.isEmpty()) {
-                    sender.sendMessage(Lang.get("market.suspicious-none"));
+                    Lang.send(sender, "market.suspicious-none");
                     return;
                 }
                 sender.sendMessage(Messages.header("Подозрительно дешёвые лоты (" + top.size() + ")"));
@@ -237,12 +238,12 @@ public class MarketHandler {
         double avg = (double) entries.get(index)[1];
         double ratio = (double) entries.get(index)[2];
         NameResolver.resolve(auction, lot.owner(), cache, ownerName -> {
-            sender.sendMessage(Lang.get("market.suspicious-line", "id", lot.uid(),
+            Lang.send(sender, "market.suspicious-line", "id", lot.uid(),
                     "material", lot.itemStack().material().name(),
                     "price", Formatters.moneyFromCents(lot.lprice_for_one()),
                     "avg", Formatters.moneyFromCents((long) avg),
                     "percent", Math.round(ratio * 100),
-                    "owner", ownerName != null ? ownerName : lot.owner().toString()));
+                    "owner", ownerName != null ? ownerName : lot.owner().toString());
             printSuspicious(sender, auction, entries, index + 1, cache);
         });
     }

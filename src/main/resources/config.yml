@@ -1,0 +1,116 @@
+# Настройки аддона применяются после /aha reload.
+
+transactions:
+  default-limit: 20
+  max-limit: 100
+
+itemhistory:
+  default-hours: 168
+  max-hours: 2160
+  default-limit: 20
+  max-limit: 100
+  scan-limit: 3000 # Сколько последних записей журнала просматривает команда.
+
+export:
+  default-hours: 24
+  max-hours: 2160
+  scan-limit: 5000
+
+liquid:
+  default-limit: 15
+  max-limit: 50
+
+find:
+  default-limit: 20
+  max-limit: 50
+
+suspicious:
+  default-threshold-percent: 35
+  default-limit: 20
+  max-limit: 50
+
+item:
+  default-hours: 168
+  max-hours: 2160
+  scan-limit: 3000
+
+hours:
+  default-days: 7
+  max-days: 30
+  scan-limit: 5000
+
+concentration:
+  default-limit: 15
+  max-limit: 50
+
+laundering:
+  default-hours: 168
+  max-hours: 2160
+  default-limit: 15
+  max-limit: 50
+  scan-limit: 5000
+
+overpriced:
+  default-hours: 168
+  max-hours: 2160
+  default-threshold-percent: 300
+  min-threshold-percent: 110
+  max-threshold-percent: 100000
+  default-limit: 15
+  max-limit: 50
+  scan-limit: 5000
+
+trend:
+  scan-limit: 2000
+
+turnover:
+  default-hours: 24
+  max-hours: 720
+  scan-limit: 2000
+
+top:
+  default-hours: 24
+  max-hours: 720
+  default-limit: 10
+  max-limit: 50
+  scan-limit: 1000
+
+player:
+  history-limit: 100
+
+give:
+  max-count: 6400
+  max-hours: 720
+
+ban:
+  duration-suggestions: [perm, 1h, 12h, 7d, 30d]
+
+bypass:
+  enabled: true
+
+pricerule:
+  enabled: true
+
+ratelimit:
+  enabled: true
+  window-minutes: 60
+  sell: 0
+  buy: 0
+
+chart:
+  default-days: 7
+  max-days: 30
+  scan-limit: 5000
+  max-items: 400
+  spark-chars: "▁▂▃▄▅▆▇█"
+
+dump-alert:
+  enabled: true
+  default-percent: 40
+  min-market-lots: 5
+  notify-console: true
+
+alert:
+  enabled: true
+  max-per-player: 10
+  cooldown-seconds: 180

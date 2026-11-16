@@ -1,5 +1,6 @@
 package dev.atos1k.auc.command;
 
+import dev.atos1k.auc.util.AddonConfig;
 import dev.atos1k.auc.AdminToolsAddon;
 import dev.atos1k.auc.command.args.ArgumentMaterial;
 import dev.atos1k.auc.command.args.ArgumentPlaceholder;
@@ -13,6 +14,7 @@ import dev.atos1k.auc.handler.FraudHandler;
 import dev.atos1k.auc.handler.LotHandler;
 import dev.atos1k.auc.handler.MarketHandler;
 import dev.atos1k.auc.handler.PlayerHandler;
+import dev.atos1k.auc.handler.PriceToolsHandler;
 import dev.atos1k.auc.handler.TransactionsHandler;
 import dev.atos1k.auc.handler.WatchHandler;
 import dev.atos1k.auc.util.BanTypes;
@@ -49,8 +51,9 @@ public final class AdminCommands {
         AnnounceHandler announce = new AnnounceHandler();
         BanHandler ban = new BanHandler(addon);
         BlacklistHandler blacklist = new BlacklistHandler(addon);
+        PriceToolsHandler tools = new PriceToolsHandler(addon);
 
-        Requires<CommandSender> admin = permission(Permissions.BASE);
+        Requires<CommandSender> admin = permission(Permissions.AHA);
 
         cmd.sub(new Command<CommandSender>("help").alias("ahelp").requires(admin).executor(
                 AdminCommands::sendHelp));
@@ -172,7 +175,7 @@ public final class AdminCommands {
         cmd.sub(new Command<CommandSender>("ban").requires(permission(Permissions.BAN)).executor(
                 new ArgumentPlayerName<>("player"),
                 new ArgumentChoice<>("type", BanTypes.ids()),
-                new ArgumentChoice<>("duration", List.of("perm", "1h", "12h", "7d", "30d")),
+                new ArgumentChoice<>("duration", AddonConfig.list("ban.duration-suggestions", List.of("perm", "1h", "12h", "7d", "30d"))),
                 new ArgumentStrings<>("reason"),
                 (s, name, type, duration, reason) -> ban.handleBan(s, auction(s), name, type, duration, reason)));
 
@@ -195,13 +198,37 @@ public final class AdminCommands {
                         new ArgumentChoice<>("value", blacklist::listedValues), blacklist::handleRemove))
                 .sub(new Command<CommandSender>("list").executor(blacklist::handleList))
                 .executor(blacklist::handleList));
+        
+        cmd.sub(new Command<CommandSender>("pricerule").alias("prule").requires(permission(Permissions.PRICERULE))
+                .sub(new Command<CommandSender>("set").executor(
+                        new ArgumentMaterial<>("material"),
+                        new ArgumentDouble<>("min"),
+                        new ArgumentDouble<>("max"),
+                        tools::handlePriceRuleSet))
+                .sub(new Command<CommandSender>("remove").alias("rm").executor(
+                        new ArgumentMaterial<>("material"), tools::handlePriceRuleRemove))
+                .sub(new Command<CommandSender>("list").executor(tools::handlePriceRuleList))
+                .executor(tools::handlePriceRuleList));
+
+        cmd.sub(new Command<CommandSender>("ratelimit").alias("rlimit").requires(permission(Permissions.RATELIMIT)).executor(
+                new ArgumentChoice<>("what", List.of("show", "sell", "buy", "window")),
+                new ArgumentInt<>("value"),
+                tools::handleRateLimit));
+
+        cmd.sub(new Command<CommandSender>("chart").requires(permission(Permissions.CHART)).executor(
+                new ArgumentMaterial<>("material"),
+                new ArgumentInt<>("days"),
+                (s, material, days) -> tools.handleChart(s, auction(s), material, days)));
+
+        cmd.sub(new Command<CommandSender>("dumpalert").requires(permission(Permissions.DUMPALERT)).executor(
+                new ArgumentInt<>("percent"), tools::handleDumpAlert));
 
         cmd.sub(new Command<CommandSender>("announce").alias("broadcast").requires(permission(Permissions.ANNOUNCE)).executor(
                 new ArgumentStrings<>("text"), announce::handleAnnounce));
 
         cmd.executor(sender -> {
-            if (!sender.hasPermission(Permissions.BASE)) {
-                sender.sendMessage(Messages.deny());
+            if (!sender.hasPermission(Permissions.AHA)) {
+                Lang.send(sender, "general.no-permission");
                 return;
             }
             sendHelp(sender);
@@ -225,6 +252,6 @@ public final class AdminCommands {
         for (Component line : Lang.getList("help.lines")) {
             sender.sendMessage(line);
         }
-        sender.sendMessage(Lang.get("help.types-line", "types", String.join(", ", LogTypes.TYPE_ALIASES.keySet())));
+        Lang.send(sender, "help.types-line", "types", String.join(", ", LogTypes.TYPE_ALIASES.keySet()));
     }
 }

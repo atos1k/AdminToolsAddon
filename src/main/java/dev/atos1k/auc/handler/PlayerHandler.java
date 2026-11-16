@@ -2,6 +2,7 @@ package dev.atos1k.auc.handler;
 
 import dev.atos1k.auc.AdminToolsAddon;
 import dev.atos1k.auc.command.Permissions;
+import dev.atos1k.auc.util.AddonConfig;
 import dev.atos1k.auc.util.Formatters;
 import dev.atos1k.auc.util.Lang;
 import dev.atos1k.auc.util.LotScanner;
@@ -30,22 +31,22 @@ public class PlayerHandler {
     
     public void handlePlayer(CommandSender sender, Auction auction, String name) {
         if (!sender.hasPermission(Permissions.PLAYER)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         if (name == null) {
-            sender.sendMessage(Lang.get("usage.player"));
+            Lang.send(sender, "usage.player");
             return;
         }
         auction.findUUID(name).then(pair -> {
             if (pair == null) {
-                sender.sendMessage(Lang.get("general.player-not-found", "player", name));
+                Lang.send(sender, "general.player-not-found", "player", name);
                 return;
             }
             UUID uuid = pair.getKey();
 
-            LogQuery spentQuery = new LogQuery(null, null, null, null, uuid, null, BuyAuctionLog.ID, 100);
-            LogQuery earnedQuery = new LogQuery(null, null, null, null, null, uuid, BuyAuctionLog.ID, 100);
+            LogQuery spentQuery = new LogQuery(null, null, null, null, uuid, null, BuyAuctionLog.ID, AddonConfig.i("player.history-limit", 100));
+            LogQuery earnedQuery = new LogQuery(null, null, null, null, null, uuid, BuyAuctionLog.ID, AddonConfig.i("player.history-limit", 100));
 
             auction.loadLogs(spentQuery).then(spentLogs ->
                     auction.loadLogs(earnedQuery).then(earnedLogs -> {
@@ -89,8 +90,8 @@ public class PlayerHandler {
                                 sender.sendMessage(Messages.kv("Заработано (посл. до 100 продаж)", Formatters.moneyFromCents(finalEarnedCents) + "  (" + finalSales + " шт.)"));
                                 sender.sendMessage(Messages.kv("Предметов в vault", String.valueOf(finalVaultCount)));
                                 sender.sendMessage(Messages.kv("Стоимость vault", Formatters.moneyFromCents(finalVaultValueCents)));
-                                sender.sendMessage(Lang.get("player.active-lots-hint", "player", name));
-                                sender.sendMessage(Lang.get("player.full-history-hint", "player", name));
+                                Lang.send(sender, "player.active-lots-hint", "player", name);
+                                Lang.send(sender, "player.full-history-hint", "player", name);
                             });
                         });
                     }));
@@ -99,22 +100,22 @@ public class PlayerHandler {
     
     public void handleWipe(CommandSender sender, Auction auction, String name, String confirm) {
         if (!sender.hasPermission(Permissions.WIPE)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         if (name == null) {
-            sender.sendMessage(Lang.get("usage.wipe"));
+            Lang.send(sender, "usage.wipe");
             return;
         }
         boolean confirmed = confirm != null && confirm.equalsIgnoreCase("confirm");
         if (!confirmed) {
-            sender.sendMessage(Lang.get("player.wipe-confirm-warning1", "player", name));
-            sender.sendMessage(Lang.get("player.wipe-confirm-warning2", "player", name));
+            Lang.send(sender, "player.wipe-confirm-warning1", "player", name);
+            Lang.send(sender, "player.wipe-confirm-warning2", "player", name);
             return;
         }
         auction.findUUID(name).then(pair -> {
             if (pair == null) {
-                sender.sendMessage(Lang.get("general.player-not-found", "player", name));
+                Lang.send(sender, "general.player-not-found", "player", name);
                 return;
             }
             UUID uuid = pair.getKey();
@@ -122,7 +123,7 @@ public class PlayerHandler {
                 List<ClientAucLot> ownerLots = LotScanner.collectOwnedBy(auction, uuid);
 
                 if (ownerLots.isEmpty()) {
-                    Bukkit.getScheduler().runTask(addon.getPlugin(), () -> sender.sendMessage(Lang.get("player.wipe-none", "player", name)));
+                    Bukkit.getScheduler().runTask(addon.getPlugin(), () -> Lang.send(sender, "player.wipe-none", "player", name));
                     return;
                 }
                 int total = ownerLots.size();
@@ -134,8 +135,8 @@ public class PlayerHandler {
                             String errorsSuffix = failCount.get() > 0
                                     ? Lang.rawFormatted("player.wipe-done-errors-suffix", "errors", failCount.get())
                                     : "";
-                            sender.sendMessage(Lang.get("player.wipe-done", "ok", okCount.get(), "total", total,
-                                    "player", name, "errors", errorsSuffix));
+                            Lang.send(sender, "player.wipe-done", "ok", okCount.get(), "total", total,
+                                    "player", name, "errors", errorsSuffix);
                         }),
                         l -> auction.moveToVault(l, uuid),
                         (l, success) -> {

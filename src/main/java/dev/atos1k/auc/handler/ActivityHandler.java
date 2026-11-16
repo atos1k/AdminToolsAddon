@@ -1,6 +1,7 @@
 package dev.atos1k.auc.handler;
 
 import dev.atos1k.auc.command.Permissions;
+import dev.atos1k.auc.util.AddonConfig;
 import dev.atos1k.auc.util.CommandUtil;
 import dev.atos1k.auc.util.Formatters;
 import dev.atos1k.auc.util.Lang;
@@ -27,7 +28,7 @@ public class ActivityHandler {
 
     public void handleTrend(CommandSender sender, Auction auction) {
         if (!sender.hasPermission(Permissions.TREND)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         sender.sendMessage(Messages.info("Считаю активность аукциона..."));
@@ -43,7 +44,7 @@ public class ActivityHandler {
     }
 
     private void fetchWindowVolume(Auction auction, long after, Consumer<Volume> then) {
-        LogQuery q = new LogQuery(null, null, after, null, null, null, BuyAuctionLog.ID, 2000);
+        LogQuery q = new LogQuery(null, null, after, null, null, null, BuyAuctionLog.ID, AddonConfig.scanLimit("trend", 2000));
         auction.loadLogs(q).then(records -> {
             int count = records == null ? 0 : records.size();
             long sum = 0;
@@ -63,19 +64,19 @@ public class ActivityHandler {
 
     public void handleTurnover(CommandSender sender, Auction auction, Integer hoursArg) {
         if (!sender.hasPermission(Permissions.TURNOVER)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
-        int finalHours = hoursArg == null ? 24 : CommandUtil.clamp(hoursArg, 1, 24 * 30);
+        int finalHours = AddonConfig.hours("turnover", hoursArg, 24, 720);
         int hours = finalHours;
         long afterTimestamp = System.currentTimeMillis() - hours * 3_600_000L;
-        int scanLimit = 2000;
+        int scanLimit = AddonConfig.scanLimit("turnover", 2000);
 
         LogQuery query = new LogQuery(null, null, afterTimestamp, null, null, null, BuyAuctionLog.ID, scanLimit);
         sender.sendMessage(Messages.info("Считаю оборот за последние " + finalHours + " ч..."));
         auction.loadLogs(query).then(records -> {
             if (records == null || records.isEmpty()) {
-                sender.sendMessage(Lang.get("activity.turnover-none"));
+                Lang.send(sender, "activity.turnover-none");
                 return;
             }
             long totalCents = 0;
@@ -92,27 +93,27 @@ public class ActivityHandler {
             sender.sendMessage(Messages.kv("Уникальных покупателей", String.valueOf(buyers.size())));
             sender.sendMessage(Messages.kv("Уникальных продавцов", String.valueOf(sellers.size())));
             if (records.size() == scanLimit) {
-                sender.sendMessage(Lang.get("activity.truncated", "limit", scanLimit));
+                Lang.send(sender, "activity.truncated", "limit", scanLimit);
             }
         });
     }
     
     public void handleTop(CommandSender sender, Auction auction, String side, Integer hoursArg, Integer limitArg) {
         if (!sender.hasPermission(Permissions.TOP)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         boolean finalByBuyers = side == null || !side.equalsIgnoreCase("sellers");
-        int finalHours = hoursArg == null ? 24 : CommandUtil.clamp(hoursArg, 1, 24 * 30);
-        int finalLeaderboardSize = limitArg == null ? 10 : CommandUtil.clamp(limitArg, 1, 50);
+        int finalHours = AddonConfig.hours("top", hoursArg, 24, 720);
+        int finalLeaderboardSize = AddonConfig.limit("top", limitArg, 10, 50);
         long afterTimestamp = System.currentTimeMillis() - finalHours * 3_600_000L;
-        int scanLimit = 1000;
+        int scanLimit = AddonConfig.scanLimit("top", 1000);
 
         LogQuery query = new LogQuery(null, null, afterTimestamp, null, null, null, BuyAuctionLog.ID, scanLimit);
         sender.sendMessage(Messages.info("Считаю топ за последние " + finalHours + " ч. (по последним до " + scanLimit + " покупкам)..."));
         auction.loadLogs(query).then(records -> {
             if (records == null || records.isEmpty()) {
-                sender.sendMessage(Lang.get("activity.top-none"));
+                Lang.send(sender, "activity.top-none");
                 return;
             }
             Map<UUID, long[]> agg = new HashMap<>();
@@ -131,7 +132,7 @@ public class ActivityHandler {
             sender.sendMessage(Messages.header("Топ " + (finalByBuyers ? "покупателей" : "продавцов") + " за " + finalHours + " ч."));
             printTopEntries(sender, auction, top, 0, 1);
             if (records.size() == scanLimit) {
-                sender.sendMessage(Lang.get("activity.truncated", "limit", scanLimit));
+                Lang.send(sender, "activity.truncated", "limit", scanLimit);
             }
         });
     }
@@ -143,8 +144,8 @@ public class ActivityHandler {
             String name = pn != null ? pn.name() : e.getKey().toString();
             long totalCents = e.getValue()[0];
             long count = e.getValue()[1];
-            sender.sendMessage(Lang.get("activity.top-line", "rank", rank, "player", name,
-                    "volume", Formatters.moneyFromCents(totalCents), "count", count));
+            Lang.send(sender, "activity.top-line", "rank", rank, "player", name,
+                    "volume", Formatters.moneyFromCents(totalCents), "count", count);
             printTopEntries(sender, auction, entries, index + 1, rank + 1);
         });
     }

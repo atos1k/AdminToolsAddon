@@ -26,32 +26,32 @@ public class BanHandler {
     public void handleBan(CommandSender sender, Auction auction, String name, String typeId,
                           String durationArg, String reason) {
         if (!sender.hasPermission(Permissions.BAN)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         if (name == null) {
-            sender.sendMessage(Lang.get("usage.ban"));
+            Lang.send(sender, "usage.ban");
             return;
         }
         BanTypes type = BanTypes.ALL;
         if (typeId != null) {
             type = BanTypes.byId(typeId);
             if (type == null) {
-                sender.sendMessage(Lang.get("ban.unknown-type", "type", typeId,
-                        "types", String.join(", ", BanTypes.ids())));
+                Lang.send(sender, "ban.unknown-type", "type", typeId,
+                        "types", String.join(", ", BanTypes.ids()));
                 return;
             }
         }
         long duration = durationArg == null ? 0 : DurationUtil.parse(durationArg);
         if (duration < 0) {
-            sender.sendMessage(Lang.get("ban.bad-duration", "duration", durationArg));
+            Lang.send(sender, "ban.bad-duration", "duration", durationArg);
             return;
         }
         BanTypes finalType = type;
         long finalDuration = duration;
         auction.findUUID(name).then(pair -> {
             if (pair == null) {
-                sender.sendMessage(Lang.get("general.player-not-found", "player", name));
+                Lang.send(sender, "general.player-not-found", "player", name);
                 return;
             }
             UUID uuid = pair.getKey();
@@ -62,68 +62,70 @@ public class BanHandler {
             String period = entry.permanent()
                     ? Lang.raw("ban.forever")
                     : DurationUtil.format(entry.expires() - System.currentTimeMillis());
-            sender.sendMessage(Lang.get("ban.success", "player", realName, "type", typeName, "period", period));
+            Lang.send(sender, "ban.success", "player", realName, "type", typeName, "period", period);
             if (reason != null) {
-                sender.sendMessage(Lang.get("ban.success-reason", "reason", reason));
+                Lang.send(sender, "ban.success-reason", "reason", reason);
             }
             Player target = Bukkit.getPlayer(uuid);
             if (target != null) {
-                target.sendMessage(Lang.get("ban.denied." + finalType.id()));
-                if (reason != null) target.sendMessage(Lang.get("ban.denied-reason", "reason", reason));
-                target.sendMessage(entry.permanent()
-                        ? Lang.get("ban.denied-permanent")
-                        : Lang.get("ban.denied-until", "time", period));
+                Lang.send(target, "ban.denied." + finalType.id());
+                if (reason != null) Lang.send(target, "ban.denied-reason", "reason", reason);
+                if (entry.permanent()) {
+                    Lang.send(target, "ban.denied-permanent");
+                } else {
+                    Lang.send(target, "ban.denied-until", "time", period);
+                }
             }
         });
     }
 
     public void handleUnban(CommandSender sender, Auction auction, String name, String typeId) {
         if (!sender.hasPermission(Permissions.BAN)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         if (name == null) {
-            sender.sendMessage(Lang.get("usage.unban"));
+            Lang.send(sender, "usage.unban");
             return;
         }
         BanTypes type = null;
         if (typeId != null) {
             type = BanTypes.byId(typeId);
             if (type == null) {
-                sender.sendMessage(Lang.get("ban.unknown-type", "type", typeId,
-                        "types", String.join(", ", BanTypes.ids())));
+                Lang.send(sender, "ban.unknown-type", "type", typeId,
+                        "types", String.join(", ", BanTypes.ids()));
                 return;
             }
         }
         BanTypes finalType = type;
         auction.findUUID(name).then(pair -> {
             if (pair == null) {
-                sender.sendMessage(Lang.get("general.player-not-found", "player", name));
+                Lang.send(sender, "general.player-not-found", "player", name);
                 return;
             }
             UUID uuid = pair.getKey();
             String realName = pair.getValue() != null ? pair.getValue() : name;
             if (!addon.bans().unban(uuid, finalType)) {
-                sender.sendMessage(Lang.get("ban.not-banned", "player", realName));
+                Lang.send(sender, "ban.not-banned", "player", realName);
                 return;
             }
             if (finalType == null || finalType == BanTypes.ALL) {
-                sender.sendMessage(Lang.get("ban.unban-all", "player", realName));
+                Lang.send(sender, "ban.unban-all", "player", realName);
             } else {
-                sender.sendMessage(Lang.get("ban.unban", "player", realName,
-                        "type", Lang.raw("ban.types." + finalType.id())));
+                Lang.send(sender, "ban.unban", "player", realName,
+                        "type", Lang.raw("ban.types." + finalType.id()));
             }
         });
     }
 
     public void handleBans(CommandSender sender) {
         if (!sender.hasPermission(Permissions.BAN)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         Map<UUID, List<BanEntry>> all = addon.bans().all();
         if (all.isEmpty()) {
-            sender.sendMessage(Lang.get("ban.list-empty"));
+            Lang.send(sender, "ban.list-empty");
             return;
         }
         sender.sendMessage(Messages.header(Lang.rawFormatted("ban.list-header", "count", all.size())));
@@ -137,13 +139,13 @@ public class BanHandler {
                         : DurationUtil.format(entry.expires() - System.currentTimeMillis());
                 parts.add(Lang.raw("ban.types." + entry.type().id()) + " (" + period + ")");
             }
-            sender.sendMessage(Lang.get("ban.list-line",
+            Lang.send(sender, "ban.list-line",
                     "player", name != null ? name : player.getKey().toString(),
-                    "types", String.join(", ", parts)));
+                    "types", String.join(", ", parts));
             for (BanEntry entry : player.getValue()) {
                 if (entry.reason() != null && !entry.reason().isBlank()) {
-                    sender.sendMessage(Lang.get("ban.list-reason",
-                            "type", Lang.raw("ban.types." + entry.type().id()), "reason", entry.reason()));
+                    Lang.send(sender, "ban.list-reason",
+                            "type", Lang.raw("ban.types." + entry.type().id()), "reason", entry.reason());
                 }
             }
         }

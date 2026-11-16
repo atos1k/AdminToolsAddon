@@ -2,6 +2,7 @@ package dev.atos1k.auc.handler;
 
 import dev.atos1k.auc.AdminToolsAddon;
 import dev.atos1k.auc.command.Permissions;
+import dev.atos1k.auc.util.AddonConfig;
 import dev.atos1k.auc.util.CommandUtil;
 import dev.atos1k.auc.util.Formatters;
 import dev.atos1k.auc.util.Lang;
@@ -36,17 +37,17 @@ public class AnalyticsHandler {
 
     public void handleItem(CommandSender sender, Auction auction, Material material, Integer hoursArg) {
         if (!sender.hasPermission(Permissions.ITEM)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         if (material == null) {
-            sender.sendMessage(Lang.get("usage.item"));
+            Lang.send(sender, "usage.item");
             return;
         }
-        int hours = hoursArg == null ? 24 * 7 : CommandUtil.clamp(hoursArg, 1, 24 * 90);
+        int hours = AddonConfig.hours("item", hoursArg, 168, 2160);
         int finalHours = hours;
         long after = System.currentTimeMillis() - hours * 3_600_000L;
-        sender.sendMessage(Lang.get("item.collecting", "material", material.name()));
+        Lang.send(sender, "item.collecting", "material", material.name());
 
         SimpleAuction.WORKER.execute(() -> {
             List<ClientAucLot> active = LotScanner.collectByMaterial(auction, material);
@@ -55,7 +56,7 @@ public class AnalyticsHandler {
                 knownItems.put(lot.itemStack().id(), lot.itemStack().material());
             }
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                LogQuery query = new LogQuery(null, null, after, null, null, null, BuyAuctionLog.ID, 3000);
+                LogQuery query = new LogQuery(null, null, after, null, null, null, BuyAuctionLog.ID, AddonConfig.scanLimit("item", 3000));
                 auction.loadLogs(query).then(records -> {
                     List<LogRecord> buys = records == null ? List.of() : records;
                     Set<Integer> unknown = new HashSet<>();
@@ -103,7 +104,7 @@ public class AnalyticsHandler {
 
         sender.sendMessage(Messages.header(Lang.rawFormatted("item.header", "material", material.name(), "hours", hours)));
         if (active.isEmpty()) {
-            sender.sendMessage(Lang.get("item.no-active"));
+            Lang.send(sender, "item.no-active");
         } else {
             long min = Long.MAX_VALUE;
             long max = 0;
@@ -126,7 +127,7 @@ public class AnalyticsHandler {
         }
 
         if (sales == 0) {
-            sender.sendMessage(Lang.get("item.no-sales"));
+            Lang.send(sender, "item.no-sales");
             return;
         }
         long avgSale = revenueCents / sales;
@@ -139,19 +140,19 @@ public class AnalyticsHandler {
 
     public void handleHours(CommandSender sender, Auction auction, Integer daysArg) {
         if (!sender.hasPermission(Permissions.HOURS)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
-        int days = daysArg == null ? 7 : CommandUtil.clamp(daysArg, 1, 30);
+        int days = AddonConfig.days("hours", daysArg, 7, 30);
         int finalDays = days;
         long after = System.currentTimeMillis() - days * 86_400_000L;
-        int scanLimit = 5000;
-        sender.sendMessage(Lang.get("hours.collecting", "days", days));
+        int scanLimit = AddonConfig.scanLimit("hours", 5000);
+        Lang.send(sender, "hours.collecting", "days", days);
 
         LogQuery query = new LogQuery(null, null, after, null, null, null, BuyAuctionLog.ID, scanLimit);
         auction.loadLogs(query).then(records -> {
             if (records == null || records.isEmpty()) {
-                sender.sendMessage(Lang.get("activity.turnover-none"));
+                Lang.send(sender, "activity.turnover-none");
                 return;
             }
             int[] counts = new int[24];
@@ -170,22 +171,22 @@ public class AnalyticsHandler {
             for (int hour = 0; hour < 24; hour++) {
                 int bars = peak == 0 ? 0 : Math.round(counts[hour] * 20F / peak);
                 String label = String.format("%02d:00", hour);
-                sender.sendMessage(Lang.get("hours.line", "hour", label, "bar", "█".repeat(bars),
-                        "count", counts[hour], "volume", Formatters.moneyFromCents(volume[hour])));
+                Lang.send(sender, "hours.line", "hour", label, "bar", "█".repeat(bars),
+                        "count", counts[hour], "volume", Formatters.moneyFromCents(volume[hour]));
             }
             if (records.size() == scanLimit) {
-                sender.sendMessage(Lang.get("hours.truncated", "limit", scanLimit));
+                Lang.send(sender, "hours.truncated", "limit", scanLimit);
             }
         });
     }
 
     public void handleConcentration(CommandSender sender, Auction auction, Integer limitArg) {
         if (!sender.hasPermission(Permissions.CONCENTRATION)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
-        int finalLimit = limitArg == null ? 15 : CommandUtil.clamp(limitArg, 1, 50);
-        sender.sendMessage(Lang.get("concentration.collecting"));
+        int finalLimit = AddonConfig.limit("concentration", limitArg, 15, 50);
+        Lang.send(sender, "concentration.collecting");
 
         SimpleAuction.WORKER.execute(() -> {
             List<ClientAucLot> lots = LotScanner.collectAllActive(auction);
@@ -215,7 +216,7 @@ public class AnalyticsHandler {
 
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 if (top.isEmpty()) {
-                    sender.sendMessage(Lang.get("concentration.empty"));
+                    Lang.send(sender, "concentration.empty");
                     return;
                 }
                 sender.sendMessage(Messages.header(Lang.rawFormatted("concentration.header", "count", top.size())));
@@ -230,12 +231,12 @@ public class AnalyticsHandler {
         Object[] row = rows.get(index);
         UUID owner = (UUID) row[1];
         dev.atos1k.auc.util.NameResolver.resolve(auction, owner, cache, ownerName -> {
-            sender.sendMessage(Lang.get("concentration.line",
+            Lang.send(sender, "concentration.line",
                     "material", ((Material) row[0]).name(),
                     "share", Math.round((double) row[4]),
                     "owned", row[2], "total", row[3],
                     "owner", ownerName != null ? ownerName : owner.toString(),
-                    "sellers", row[5]));
+                    "sellers", row[5]);
             printConcentration(sender, auction, rows, index + 1, cache);
         });
     }

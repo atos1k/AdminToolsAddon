@@ -36,7 +36,7 @@ public class WatchHandler {
 
     public void handleWatch(CommandSender sender, String typeAlias) {
         if (!sender.hasPermission(Permissions.WATCH)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         if (typeAlias == null) {
@@ -52,19 +52,19 @@ public class WatchHandler {
             } else {
                 addon.toggleConsoleWatch();
             }
-            sender.sendMessage(Lang.get("watch.enabled"));
+            Lang.send(sender, "watch.enabled");
         }
         handleWatchType(sender, typeAlias);
     }
 
     public void handleWatchOff(CommandSender sender) {
         if (!sender.hasPermission(Permissions.WATCH)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         UUID key = keyOf(sender);
         if (addon.watchFilter(key) == null) {
-            sender.sendMessage(Lang.get("watch.disabled"));
+            Lang.send(sender, "watch.disabled");
             return;
         }
         if (sender instanceof Player player) {
@@ -72,101 +72,101 @@ public class WatchHandler {
         } else {
             addon.toggleConsoleWatch();
         }
-        sender.sendMessage(Lang.get("watch.disabled"));
+        Lang.send(sender, "watch.disabled");
     }
 
     public void handleWatchClear(CommandSender sender) {
         if (!sender.hasPermission(Permissions.WATCH)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         UUID key = keyOf(sender);
         if (addon.watchFilter(key) == null) {
-            sender.sendMessage(Lang.get("watch.not-watching"));
+            Lang.send(sender, "watch.not-watching");
             return;
         }
         addon.setWatchFilter(key, WatchFilter.NONE);
-        sender.sendMessage(Lang.get("watch.filters-cleared"));
+        Lang.send(sender, "watch.filters-cleared");
     }
 
     public void handleWatchPlayer(CommandSender sender, Auction auction, String name) {
         if (!sender.hasPermission(Permissions.WATCH)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         if (name == null) {
-            sender.sendMessage(Lang.get("usage.watch-player"));
+            Lang.send(sender, "usage.watch-player");
             return;
         }
         UUID key = keyOf(sender);
         auction.findUUID(name).then(pair -> {
             if (pair == null) {
-                sender.sendMessage(Lang.get("general.player-not-found", "player", name));
+                Lang.send(sender, "general.player-not-found", "player", name);
                 return;
             }
             String realName = pair.getValue() != null ? pair.getValue() : name;
             WatchFilter current = addon.watchFilter(key);
             addon.setWatchFilter(key, (current == null ? WatchFilter.NONE : current)
                     .withPlayer(pair.getKey(), realName));
-            sender.sendMessage(Lang.get("watch.filter-player", "player", realName));
+            Lang.send(sender, "watch.filter-player", "player", realName);
         });
     }
 
     public void handleWatchType(CommandSender sender, String typeAlias) {
         if (!sender.hasPermission(Permissions.WATCH)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         if (typeAlias == null) {
-            sender.sendMessage(Lang.get("usage.watch-type"));
+            Lang.send(sender, "usage.watch-type");
             return;
         }
         String alias = typeAlias.toLowerCase(Locale.ROOT);
         String typeId = LogTypes.TYPE_ALIASES.get(alias);
         if (typeId == null) {
-            sender.sendMessage(Lang.get("watch.unknown-type", "type", typeAlias,
-                    "types", String.join(", ", LogTypes.TYPE_ALIASES.keySet())));
+            Lang.send(sender, "watch.unknown-type", "type", typeAlias,
+                    "types", String.join(", ", LogTypes.TYPE_ALIASES.keySet()));
             return;
         }
         UUID key = keyOf(sender);
         WatchFilter current = addon.watchFilter(key);
         addon.setWatchFilter(key, (current == null ? WatchFilter.NONE : current).withType(typeId));
-        sender.sendMessage(Lang.get("watch.filter-type", "type", LogTypes.describe(typeId)));
+        Lang.send(sender, "watch.filter-type", "type", LogTypes.describe(typeId));
     }
 
     public void handleWatchMin(CommandSender sender, Double price) {
         if (!sender.hasPermission(Permissions.WATCH)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         if (price == null || price < 0) {
-            sender.sendMessage(Lang.get("usage.watch-min"));
+            Lang.send(sender, "usage.watch-min");
             return;
         }
         UUID key = keyOf(sender);
         WatchFilter current = addon.watchFilter(key);
         addon.setWatchFilter(key, (current == null ? WatchFilter.NONE : current)
                 .withMin(EconomyUtil.toCents(price)));
-        sender.sendMessage(Lang.get("watch.filter-min", "price", Formatters.money(price)));
+        Lang.send(sender, "watch.filter-min", "price", Formatters.money(price));
     }
 
     public void handleWatchStatus(CommandSender sender) {
         if (!sender.hasPermission(Permissions.WATCH)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
         WatchFilter filter = addon.watchFilter(keyOf(sender));
         if (filter == null) {
-            sender.sendMessage(Lang.get("watch.not-watching"));
+            Lang.send(sender, "watch.not-watching");
             return;
         }
         sender.sendMessage(Messages.header(Lang.raw("watch.status-header")));
-        sender.sendMessage(Lang.get("watch.status-player", "player",
-                filter.playerName() != null ? filter.playerName() : Lang.raw("watch.status-any")));
-        sender.sendMessage(Lang.get("watch.status-type", "type",
-                filter.type() != null ? LogTypes.describe(filter.type()) : Lang.raw("watch.status-any")));
-        sender.sendMessage(Lang.get("watch.status-min", "price",
-                filter.minCents() != null ? Formatters.moneyFromCents(filter.minCents()) : Lang.raw("watch.status-any")));
+        Lang.send(sender, "watch.status-player", "player",
+                filter.playerName() != null ? filter.playerName() : Lang.raw("watch.status-any"));
+        Lang.send(sender, "watch.status-type", "type",
+                filter.type() != null ? LogTypes.describe(filter.type()) : Lang.raw("watch.status-any"));
+        Lang.send(sender, "watch.status-min", "price",
+                filter.minCents() != null ? Formatters.moneyFromCents(filter.minCents()) : Lang.raw("watch.status-any"));
     }
 
     public void broadcastLiveEvent(Auction auction, LogRecord record) {

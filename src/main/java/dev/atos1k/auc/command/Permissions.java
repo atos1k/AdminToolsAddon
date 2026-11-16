@@ -3,34 +3,41 @@ package dev.atos1k.auc.command;
 public final class Permissions {
     private Permissions() {
     }
-
-    public static final String BASE = "aha.tools";
-    public static final String TRANSACTIONS = BASE + ".transactions";
-    public static final String ITEMHISTORY = BASE + ".itemhistory";
-    public static final String EXPORT = BASE + ".export";
-    public static final String LIQUID = BASE + ".liquid";
-    public static final String STATS = BASE + ".stats";
-    public static final String PRICE = BASE + ".price";
-    public static final String FIND = BASE + ".find";
-    public static final String SUSPICIOUS = BASE + ".suspicious";
-    public static final String TREND = BASE + ".trend";
-    public static final String TURNOVER = BASE + ".turnover";
-    public static final String TOP = BASE + ".top";
-    public static final String LOT = BASE + ".lot";
-    public static final String REMOVELOT = BASE + ".removelot";
-    public static final String GIVE = BASE + ".give";
-    public static final String PLAYER = BASE + ".player";
-    public static final String WIPE = BASE + ".wipe";
-    public static final String WATCH = BASE + ".watch";
-    public static final String ANNOUNCE = BASE + ".announce";
-    public static final String BAN = BASE + ".ban";
-    public static final String BLACKLIST = BASE + ".blacklist";
-    public static final String ITEM = BASE + ".item";
-    public static final String HOURS = BASE + ".hours";
-    public static final String CONCENTRATION = BASE + ".concentration";
-    public static final String LAUNDERING = BASE + ".laundering";
-    public static final String OVERPRICED = BASE + ".overpriced";
-
+    
+    public static final String AHA = "aha.tools";
+    public static final String BAUC = "bauc";
+    public static final String TRANSACTIONS = AHA + ".transactions";
+    public static final String ITEMHISTORY = AHA + ".itemhistory";
+    public static final String EXPORT = AHA + ".export";
+    public static final String LIQUID = AHA + ".liquid";
+    public static final String STATS = AHA + ".stats";
+    public static final String PRICE = AHA + ".price";
+    public static final String FIND = AHA + ".find";
+    public static final String SUSPICIOUS = AHA + ".suspicious";
+    public static final String TREND = AHA + ".trend";
+    public static final String TURNOVER = AHA + ".turnover";
+    public static final String TOP = AHA + ".top";
+    public static final String LOT = AHA + ".lot";
+    public static final String REMOVELOT = AHA + ".removelot";
+    public static final String GIVE = AHA + ".give";
+    public static final String PLAYER = AHA + ".player";
+    public static final String WIPE = AHA + ".wipe";
+    public static final String WATCH = AHA + ".watch";
+    public static final String ANNOUNCE = AHA + ".announce";
+    public static final String BAN = AHA + ".ban";
+    public static final String BLACKLIST = AHA + ".blacklist";
+    public static final String ITEM = AHA + ".item";
+    public static final String HOURS = AHA + ".hours";
+    public static final String CONCENTRATION = AHA + ".concentration";
+    public static final String LAUNDERING = AHA + ".laundering";
+    public static final String OVERPRICED = AHA + ".overpriced";
+    public static final String PRICERULE = AHA + ".pricerule";
+    public static final String RATELIMIT = AHA + ".ratelimit";
+    public static final String CHART = AHA + ".chart";
+    public static final String DUMPALERT = AHA + ".dumpalert";
+    public static final String BYPASS = AHA + ".bypass";
+    public static final String ALERT = BAUC + ".alerts";
+    
     public static final String[] CHILD = {
             TRANSACTIONS, ITEMHISTORY, EXPORT,
             LIQUID, STATS, PRICE, FIND, SUSPICIOUS,
@@ -39,6 +46,7 @@ public final class Permissions {
             PLAYER, WIPE,
             WATCH, ANNOUNCE,
             BAN, BLACKLIST,
-            ITEM, HOURS, CONCENTRATION, LAUNDERING, OVERPRICED
+            ITEM, HOURS, CONCENTRATION, LAUNDERING, OVERPRICED,
+            PRICERULE, RATELIMIT, CHART, DUMPALERT, BYPASS
     };
 }

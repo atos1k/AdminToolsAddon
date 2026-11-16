@@ -20,10 +20,6 @@ public final class Messages {
         return Lang.get("general.info-format", "text", text);
     }
 
-    public static Component err(String text) {
-        return Lang.get("general.error-format", "text", text);
-    }
-
     public static Component deny() {
         return Lang.get("general.no-permission");
     }

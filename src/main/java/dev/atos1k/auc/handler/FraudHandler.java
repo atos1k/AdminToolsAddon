@@ -2,6 +2,7 @@ package dev.atos1k.auc.handler;
 
 import dev.atos1k.auc.AdminToolsAddon;
 import dev.atos1k.auc.command.Permissions;
+import dev.atos1k.auc.util.AddonConfig;
 import dev.atos1k.auc.util.CommandUtil;
 import dev.atos1k.auc.util.Formatters;
 import dev.atos1k.auc.util.Lang;
@@ -35,20 +36,20 @@ public class FraudHandler {
 
     public void handleLaundering(CommandSender sender, Auction auction, Integer hoursArg, Integer limitArg) {
         if (!sender.hasPermission(Permissions.LAUNDERING)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
-        int hours = hoursArg == null ? 24 * 7 : CommandUtil.clamp(hoursArg, 1, 24 * 90);
+        int hours = AddonConfig.hours("laundering", hoursArg, 168, 2160);
         int finalHours = hours;
-        int finalLimit = limitArg == null ? 15 : CommandUtil.clamp(limitArg, 1, 50);
+        int finalLimit = AddonConfig.limit("laundering", limitArg, 15, 50);
         long after = System.currentTimeMillis() - hours * 3_600_000L;
-        int scanLimit = 5000;
-        sender.sendMessage(Lang.get("laundering.collecting", "hours", hours));
+        int scanLimit = AddonConfig.scanLimit("laundering", 5000);
+        Lang.send(sender, "laundering.collecting", "hours", hours);
 
         LogQuery query = new LogQuery(null, null, after, null, null, null, BuyAuctionLog.ID, scanLimit);
         auction.loadLogs(query).then(records -> {
             if (records == null || records.isEmpty()) {
-                sender.sendMessage(Lang.get("activity.turnover-none"));
+                Lang.send(sender, "activity.turnover-none");
                 return;
             }
             Map<String, Pair> pairs = new HashMap<>();
@@ -76,34 +77,34 @@ public class FraudHandler {
             List<Pair> top = flagged.subList(0, Math.min(finalLimit, flagged.size()));
 
             if (top.isEmpty()) {
-                sender.sendMessage(Lang.get("laundering.empty", "hours", finalHours));
+                Lang.send(sender, "laundering.empty", "hours", finalHours);
                 return;
             }
             sender.sendMessage(Messages.header(Lang.rawFormatted("laundering.header",
                     "count", top.size(), "hours", finalHours)));
             printPairs(sender, auction, top, 0, new HashMap<>());
             if (records.size() == scanLimit) {
-                sender.sendMessage(Lang.get("laundering.truncated", "limit", scanLimit));
+                Lang.send(sender, "laundering.truncated", "limit", scanLimit);
             }
         });
     }
 
     public void handleOverpriced(CommandSender sender, Auction auction, Integer hoursArg, Integer thresholdArg, Integer limitArg) {
         if (!sender.hasPermission(Permissions.OVERPRICED)) {
-            sender.sendMessage(Messages.deny());
+            Lang.send(sender, "general.no-permission");
             return;
         }
-        int hours = hoursArg == null ? 24 * 7 : CommandUtil.clamp(hoursArg, 1, 24 * 90);
-        int threshold = thresholdArg == null ? 300 : CommandUtil.clamp(thresholdArg, 110, 100000);
-        int limit = limitArg == null ? 15 : CommandUtil.clamp(limitArg, 1, 50);
+        int hours = AddonConfig.hours("overpriced", hoursArg, 168, 2160);
+        int threshold = CommandUtil.clamp(thresholdArg == null ? AddonConfig.i("overpriced.default-threshold-percent", 300) : thresholdArg, AddonConfig.i("overpriced.min-threshold-percent", 110), AddonConfig.i("overpriced.max-threshold-percent", 100000));
+        int limit = AddonConfig.limit("overpriced", limitArg, 15, 50);
         long after = System.currentTimeMillis() - hours * 3_600_000L;
-        int scanLimit = 5000;
-        sender.sendMessage(Lang.get("overpriced.collecting", "hours", hours, "threshold", threshold));
+        int scanLimit = AddonConfig.scanLimit("overpriced", 5000);
+        Lang.send(sender, "overpriced.collecting", "hours", hours, "threshold", threshold);
 
         LogQuery query = new LogQuery(null, null, after, null, null, null, BuyAuctionLog.ID, scanLimit);
         auction.loadLogs(query).then(records -> {
             if (records == null || records.isEmpty()) {
-                sender.sendMessage(Lang.get("activity.turnover-none"));
+                Lang.send(sender, "activity.turnover-none");
                 return;
             }
             SimpleAuction.WORKER.execute(() -> {
@@ -175,14 +176,14 @@ public class FraudHandler {
         List<Map.Entry<UUID, Seller>> top = sorted.subList(0, Math.min(limit, sorted.size()));
 
         if (top.isEmpty()) {
-            sender.sendMessage(Lang.get("overpriced.empty", "hours", hours, "threshold", threshold));
+            Lang.send(sender, "overpriced.empty", "hours", hours, "threshold", threshold);
             return;
         }
         sender.sendMessage(Messages.header(Lang.rawFormatted("overpriced.header",
                 "count", top.size(), "hours", hours, "threshold", threshold)));
         printSellers(sender, auction, top, 0, new HashMap<>());
         if (truncated) {
-            sender.sendMessage(Lang.get("overpriced.truncated", "limit", records.size()));
+            Lang.send(sender, "overpriced.truncated", "limit", records.size());
         }
     }
 
@@ -192,12 +193,12 @@ public class FraudHandler {
         Map.Entry<UUID, Seller> row = rows.get(index);
         Seller st = row.getValue();
         NameResolver.resolve(auction, row.getKey(), cache, name -> {
-            sender.sendMessage(Lang.get("overpriced.line",
+            Lang.send(sender, "overpriced.line",
                     "seller", name != null ? name : row.getKey().toString(),
                     "sales", st.sales,
                     "buyers", st.buyers.size(),
                     "volume", Formatters.moneyFromCents(st.totalCents),
-                    "max", st.maxRatio));
+                    "max", st.maxRatio);
             printSellers(sender, auction, rows, index + 1, cache);
         });
     }
@@ -214,11 +215,11 @@ public class FraudHandler {
         Pair pair = pairs.get(index);
         NameResolver.resolve(auction, pair.a, cache, nameA ->
                 NameResolver.resolve(auction, pair.b, cache, nameB -> {
-                    sender.sendMessage(Lang.get("laundering.line",
+                    Lang.send(sender, "laundering.line",
                             "a", nameA != null ? nameA : pair.a.toString(),
                             "b", nameB != null ? nameB : pair.b.toString(),
                             "a_to_b", pair.aToB, "b_to_a", pair.bToA,
-                            "volume", Formatters.moneyFromCents(pair.totalCents)));
+                            "volume", Formatters.moneyFromCents(pair.totalCents));
                     printPairs(sender, auction, pairs, index + 1, cache);
                 }));
     }
